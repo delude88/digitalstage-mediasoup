@@ -4,7 +4,7 @@ import {Artist} from "../models/Artist";
 import {Group, Kind} from "../models/Group";
 import {Server} from "../models/Server";
 
-const serviceAccount = require("./../../firebase-adminsdk.json");
+const serviceAccount = require("../firebase-adminsdk.json");
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://digitalstage-wirvsvirus.firebaseio.com"

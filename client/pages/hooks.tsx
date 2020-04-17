@@ -12,7 +12,7 @@ import VideoTrackPlayer from "../components/VideoTrackPlayer";
 
 export default () => {
     const [isDirector, setDirector] = useState<boolean>(false);
-    const [userName, setUserName] = useState<string>("");
+    const [userName, setUserName] = useState<string>("name");
     const [roomName, setRoomName] = useState<string>("myroom");
     const {connect, connected, consumers, sendStream} = useMediasoup();
     const [localStream, setLocalStream] = useState<MediaStream>();

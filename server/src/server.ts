@@ -12,33 +12,32 @@ import {DtlsParameters} from "mediasoup/src/WebRtcTransport";
 import {MediaKind, RtpParameters} from "mediasoup/src/RtpParameters";
 import {RtpCapabilities} from "mediasoup/lib/RtpParameters";
 
-const mediasoup = require('mediasoup');
+const mediasoup = require("mediasoup");
 
 let mediasoupRouter: Router;
-const config = require('./config');
+const config = require("./config");
 
 const port: number = parseInt(process.env.PORT) || 3001;
 
 interface Member {
     id: string;
     transports: {
-        [id: string]: WebRtcTransport
+        [id: string]: WebRtcTransport;
     };
     producers: {
-        [id: string]: Producer
+        [id: string]: Producer;
     };
     consumers: {
-        [id: string]: Consumer
+        [id: string]: Consumer;
     };
 }
 
-interface Director extends Member {
-}
+type Director = Member
 
 interface Room {
-    id: string,
-    members: Member[],
-    director?: Director
+    id: string;
+    members: Member[];
+    director?: Director;
 }
 
 const rooms: Room[] = [];
@@ -47,7 +46,7 @@ const rooms: Room[] = [];
 const main = async () => {
     const app: Express = express();
     app.use(cors({origin: true}));
-    app.options('*', cors());
+    app.options("*", cors());
 
     const webServer: Server = http.createServer({}, app);
 
@@ -63,18 +62,18 @@ const main = async () => {
     app.post("/rooms/create", async (req, res) => {
         const roomName: string = req.body.name;
         if (rooms.find((room: Room) => room.id === roomName) !== null) {
-            return res.status(400).json({error: 'Room already exsists'});
+            return res.status(400).json({error: "Room already exsists"});
         }
         rooms.push({
             id: roomName,
             members: []
         });
-        res.status(200).json({status: 'ok'});
+        res.status(200).json({status: "ok"});
     });
 
     //TODO: Remove the following line
     rooms.push({
-        id: 'myroom',
+        id: "myroom",
         members: [],
     });
 
@@ -84,10 +83,10 @@ const main = async () => {
         console.log("New connection from " + socket.id);
 
         /*** JOIN ROOM (answer: rtp capabilities) ***/
-        socket.on('join-room', async (data: {
-            memberId: string,
-            roomName: string,
-            isDirector: boolean
+        socket.on("join-room", async (data: {
+            memberId: string;
+            roomName: string;
+            isDirector: boolean;
         }, callback) => {
             console.log(socket.id + ": join-room");
             //TODO: If switching room, disconnect first
@@ -112,7 +111,7 @@ const main = async () => {
         });
 
         /*** CREATE TRANSPORT ***/
-        socket.on('create-send-transport', async (data: {}, callback) => {
+        socket.on("create-send-transport", async (data: {}, callback) => {
             console.log(socket.id + ": create-send-transport");
             if (!room || !member) {
                 console.error("create-transport before successful join-room");
@@ -124,7 +123,7 @@ const main = async () => {
                 enableTcp: true,
                 preferUdp: true,
                 initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
-                appData: {peerId: member.id, clientDirection: 'send'}
+                appData: {peerId: member.id, clientDirection: "send"}
             });
             if (config.mediasoup.webRtcTransport.maxIncomingBitrate) {
                 try {
@@ -141,8 +140,8 @@ const main = async () => {
             });
         });
 
-        socket.on('create-receive-transport', async (data: {
-            rtpCapabilities: RtpCapabilities
+        socket.on("create-receive-transport", async (data: {
+            rtpCapabilities: RtpCapabilities;
         }, callback) => {
             console.log(socket.id + ": create-receive-transport");
             if (!room || !member) {
@@ -155,7 +154,7 @@ const main = async () => {
                 enableTcp: true,
                 preferUdp: true,
                 initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
-                appData: {peerId: member.id, clientDirection: 'recv'}
+                appData: {peerId: member.id, clientDirection: "recv"}
             });
             member.transports[transport.id] = transport;
             callback({
@@ -166,56 +165,56 @@ const main = async () => {
             });
         });
 
-        socket.on('connect-transport', async (data: {
+        socket.on("connect-transport", async (data: {
             transportId: string;
             dtlsParameters: DtlsParameters;
         }, callback) => {
             console.log(socket.id + ": connect-transport " + data.transportId);
             const transport: WebRtcTransport = member.transports[data.transportId];
             if (!transport) {
-                callback({error: 'Could not find transport ' + data.transportId});
+                callback({error: "Could not find transport " + data.transportId});
                 return;
             }
             await transport.connect({dtlsParameters: data.dtlsParameters});
             callback({connected: true});
         });
 
-        socket.on('send-track', async (data: {
+        socket.on("send-track", async (data: {
             transportId: string;
-            rtpParameters: RtpParameters
+            rtpParameters: RtpParameters;
             kind: MediaKind;
         }, callback) => {
             console.log(socket.id + ": send-track");
             const transport: WebRtcTransport = member.transports[data.transportId];
             if (!transport) {
-                callback({error: 'Could not find transport ' + data.transportId});
+                callback({error: "Could not find transport " + data.transportId});
                 return;
             }
             const producer: Producer = await transport.produce({
                 kind: data.kind,
                 rtpParameters: data.rtpParameters
             });
-            producer.on('transportclose', () => {
-                console.log('producer\'s transport closed', producer.id);
+            producer.on("transportclose", () => {
+                console.log("producer's transport closed", producer.id);
                 //closeProducer(producer);
             });
             member.producers[producer.id] = producer;
             // Inform all about new producer
-            socket.emit('producer-added', {
+            socket.emit("producer-added", {
                 id: producer.id
             });
             callback({id: producer.id});
         });
 
-        socket.on('consume', async (data: {
+        socket.on("consume", async (data: {
             producerId: string;
             transportId: string;
-            rtpCapabilities: RtpCapabilities
+            rtpCapabilities: RtpCapabilities;
         }, callback) => {
             console.log(socket.id + ": consume");
             const transport: WebRtcTransport = member.transports[data.transportId];
             if (!transport) {
-                callback({error: 'Could not find transport ' + data.transportId});
+                callback({error: "Could not find transport " + data.transportId});
                 return;
             }
             const consumer: Consumer = await transport.consume({
@@ -228,29 +227,31 @@ const main = async () => {
                 id: consumer.id,
                 producerId: consumer.producerId,
                 kind: consumer.kind,
-                rtpParameters: consumer.rtpParameters
+                rtpParameters: consumer.rtpParameters,
+                producerPaused: consumer.producerPaused,
+                type: consumer.type
             });
         });
 
-        socket.on('finish-consume', async (data: {
+        socket.on("finish-consume", async (data: {
             id: string;
         }, callback) => {
             console.log(socket.id + ": finished consume");
             const consumer: Consumer = member.consumers[data.id];
             if (!consumer) {
-                callback({error: 'consumer not found'});
+                callback({error: "consumer not found"});
             }
             consumer.resume().then(
                 () => callback()
             );
-        })
+        });
     };
     const socketServer: SocketIO.Server = SocketIO(webServer);
     socketServer.on("connection", handleConnection);
-    socketServer.origins('*:*');
+    socketServer.origins("*:*");
 
     webServer.listen(port, () => {
-        console.log("Running digital stage on port " + port)
+        console.log("Running digital stage on port " + port);
     });
 
 };

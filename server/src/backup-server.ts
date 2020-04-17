@@ -9,30 +9,30 @@ import {WebRtcTransport} from "mediasoup/lib/WebRtcTransport";
 import {Producer} from "mediasoup/lib/Producer";
 import {Consumer} from "mediasoup/lib/Consumer";
 
-const mediasoup = require('mediasoup');
+const mediasoup = require("mediasoup");
 
 let mediasoupRouter: Router;
-const config = require('./config');
+const config = require("./config");
 
 const port: number = parseInt(process.env.PORT) || 3001;
 
 interface Room {
-    peers: {},
-    transports: {},
-    producers: [],
-    consumers: []
+    peers: {};
+    transports: {};
+    producers: [];
+    consumers: [];
 }
 
 let producer: Producer = null;
 let consumer: Consumer = null;
-let consumerTransport: any = null;
+const consumerTransport: any = null;
 
 // Start webserver
 const main = async () => {
 
     const app: Express = express();
     app.use(cors({origin: true}));
-    app.options('*', cors());
+    app.options("*", cors());
 
     const webServer: Server = http.createServer({}, app);
 
@@ -50,11 +50,11 @@ const main = async () => {
         let producerTransport: WebRtcTransport;
 
         if (producer) {
-            socket.emit('producer-added');
+            socket.emit("producer-added");
         }
 
         socket.on("join", (data: {
-            room: string
+            room: string;
         }) => {
             console.log("Joining " + data.room);
         });
@@ -76,41 +76,41 @@ const main = async () => {
             }
         });
 
-        socket.on('connect-producer-transport', async (data, callback) => {
+        socket.on("connect-producer-transport", async (data, callback) => {
             console.log("connect-producer-transport");
             await producerTransport.connect({dtlsParameters: data.dtlsParameters});
             callback();
         });
 
-        socket.on('connect-consumer-transport', async (data, callback) => {
+        socket.on("connect-consumer-transport", async (data, callback) => {
             await consumerTransport.connect({ dtlsParameters: data.dtlsParameters });
             callback();
         });
 
-        socket.on('produce', async (data, callback) => {
+        socket.on("produce", async (data, callback) => {
             const {kind, rtpParameters} = data;
             producer = await producerTransport.produce({kind, rtpParameters});
             callback({id: producer.id});
 
             // inform clients about new producer
-            socket.broadcast.emit('newProducer');
+            socket.broadcast.emit("newProducer");
         });
 
-        socket.on('consume', async (data, callback) => {
+        socket.on("consume", async (data, callback) => {
             callback(await createConsumer(producer, data.rtpCapabilities));
         });
 
-        socket.on('resume', async (data, callback) => {
+        socket.on("resume", async (data, callback) => {
             await consumer.resume();
             callback();
         });
     };
     const socketServer: SocketIO.Server = SocketIO(webServer);
     socketServer.on("connection", handleConnection);
-    socketServer.origins('*:*');
+    socketServer.origins("*:*");
 
     webServer.listen(port, () => {
-        console.log("Running digital stage on port " + port)
+        console.log("Running digital stage on port " + port);
     });
 
 };
@@ -153,21 +153,21 @@ async function createConsumer(producer: Producer, rtpCapabilities: any) {
             rtpCapabilities,
         })
     ) {
-        console.error('can not consume');
+        console.error("can not consume");
         return;
     }
     try {
         consumer = await consumerTransport.consume({
             producerId: producer.id,
             rtpCapabilities,
-            paused: producer.kind === 'video',
+            paused: producer.kind === "video",
         });
     } catch (error) {
-        console.error('consume failed', error);
+        console.error("consume failed", error);
         return;
     }
 
-    if (consumer.type === 'simulcast') {
+    if (consumer.type === "simulcast") {
         await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 });
     }
 

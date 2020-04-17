@@ -1,13 +1,13 @@
 module.exports = {
     listenIp: "0.0.0.0",
-    listenPort: 3000,
-    sslCrt: "/etc/ssl/certs/ssl-cert-snakeoil.pem",
-    sslKey: "/etc/ssl/private/ssl-cert-snakeoil.key",
+    listenPort: 3001,
+    sslCrt: "/etc/letsencrypt/csr/0000_csr-certbot.pem",
+    sslKey: "/etc/letsencrypt/keys/0000_csr-certbot.pem",
     mediasoup: {
         // Worker settings
         worker: {
-            rtcMinPort: 10000,
-            rtcMaxPort: 10100,
+            rtcMinPort: 40000,
+            rtcMaxPort: 40999,
             logLevel: "warn",
             logTags: [
                 "info",
@@ -48,7 +48,7 @@ module.exports = {
         webRtcTransport: {
             listenIps: [
                 {
-                    ip: "127.0.0.1",
+                    ip: "167.172.168.55",
                     announcedIp: null,
                 }
             ],

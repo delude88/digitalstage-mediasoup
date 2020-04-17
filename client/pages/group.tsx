@@ -89,7 +89,7 @@ class Group extends Component<{}, {
         if (!this.state.device) {
             throw new Error("Mediasoup device is not ready");
         }
-        const socket: SocketWithRequest = extend(SocketIOClient("localhost:3001"));
+        const socket: SocketWithRequest = extend(SocketIOClient("167.172.168.55:3001"));
 
         console.log("connect 1: join room");
         const routerRtpCapabilities = await socket.request('join-room', {
@@ -137,7 +137,7 @@ class Group extends Component<{}, {
             callback(result.id);
         });
         sendTransport.on('connectionstatechange', async (state) => {
-            console.log("sendTransport: connectionstatechange");
+            console.log("sendTransport: connectionstatechange " + state);
             if (state === 'closed' || state === 'failed' || state === 'disconnected') {
                 console.error("Disconnect by server side");
             }
@@ -163,7 +163,7 @@ class Group extends Component<{}, {
                 .catch(errCallback);
         });
         receiveTransport.on('connectionstatechange', async (state) => {
-            console.log("receiveTransport: connectionstatechange");
+            console.log("receiveTransport: connectionstatechange " + state);
             if (state === 'closed' || state === 'failed' || state === 'disconnected') {
                 console.error("Disconnect by server side");
             }
@@ -185,6 +185,7 @@ class Group extends Component<{}, {
             await socket.request('finish-consume', {
                 id: consumerOptions.id
             });
+            consumer.resume();
             this.setState(prevState => ({consumer: [...prevState.consumer, consumer]}));
         });
 

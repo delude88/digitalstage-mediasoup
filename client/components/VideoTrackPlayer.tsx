@@ -12,7 +12,8 @@ export default (props: {
 
     useEffect(() => {
         if (props.track) {
-            videoRef.current.srcObject = new MediaStream([props.track.clone()]);
+            console.log(props.track);
+            videoRef.current.srcObject = new MediaStream([props.track]);
             videoRef.current.play();
         } else {
             videoRef.current.srcObject = null;

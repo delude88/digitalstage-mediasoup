@@ -17,7 +17,6 @@ const mediasoup = require("mediasoup");
 let mediasoupRouter: Router;
 const config = require("./config");
 
-const port: number = parseInt(process.env.PORT) || 3001;
 
 interface Member {
     id: string;
@@ -110,7 +109,7 @@ const main = async () => {
             }
         });
 
-        /*** CREATE TRANSPORT ***/
+        /*** CREATE SEND TRANSPORT ***/
         socket.on("create-send-transport", async (data: {}, callback) => {
             console.log(socket.id + ": create-send-transport");
             if (!room || !member) {
@@ -140,6 +139,7 @@ const main = async () => {
             });
         });
 
+        /*** CREATE RECEIVE TRANSPORT ***/
         socket.on("create-receive-transport", async (data: {
             rtpCapabilities: RtpCapabilities;
         }, callback) => {
@@ -165,6 +165,7 @@ const main = async () => {
             });
         });
 
+        /*** CONNECT TRANSPORT ***/
         socket.on("connect-transport", async (data: {
             transportId: string;
             dtlsParameters: DtlsParameters;
@@ -179,6 +180,7 @@ const main = async () => {
             callback({connected: true});
         });
 
+        /*** SEND TRACK ***/
         socket.on("send-track", async (data: {
             transportId: string;
             rtpParameters: RtpParameters;
@@ -206,6 +208,7 @@ const main = async () => {
             callback({id: producer.id});
         });
 
+        /*** CONSUME (paused track) ***/
         socket.on("consume", async (data: {
             producerId: string;
             transportId: string;
@@ -233,6 +236,7 @@ const main = async () => {
             });
         });
 
+        /*** FINISH CONSUME (resume track after successful consume establishment) ***/
         socket.on("finish-consume", async (data: {
             id: string;
         }, callback) => {
@@ -246,29 +250,14 @@ const main = async () => {
             );
         });
     };
+
     const socketServer: SocketIO.Server = SocketIO(webServer);
     socketServer.on("connection", handleConnection);
     socketServer.origins("*:*");
 
-    webServer.listen(port, () => {
-        console.log("Running digital stage on port " + port);
+    webServer.listen(config.listenPort, () => {
+        console.log("Running digital stage on port " + config.listenPort);
     });
 
 };
 main();
-
-async function createWebRtcTransport(router: Router, {peerId, direction}: any): Promise<WebRtcTransport> {
-    const {
-        listenIps,
-        initialAvailableOutgoingBitrate
-    } = config.mediasoup.webRtcTransport;
-
-    return await router.createWebRtcTransport({
-        listenIps: listenIps,
-        enableUdp: true,
-        enableTcp: true,
-        preferUdp: true,
-        initialAvailableOutgoingBitrate: initialAvailableOutgoingBitrate,
-        appData: {peerId, clientDirection: direction}
-    });
-}

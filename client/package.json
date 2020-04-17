@@ -11,18 +11,28 @@
   "author": "Tobias Hegemann",
   "license": "MIT",
   "dependencies": {
+    "baseui": "^9.71.0",
     "baseweb": "^3.0.7",
+    "firebase": "latest",
+    "isomorphic-unfetch": "^3.0.0",
+    "js-cookie": "latest",
     "mediasoup-client": "^3.6.4",
     "next": "^9.3.4",
+    "next-cookies": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "firebase": "latest",
-    "socket.io-client": "latest"
+    "socket.io-client": "latest",
+    "styletron-engine-atomic": "^1.4.6",
+    "styletron-react": "^5.2.7",
+    "webrtc-adapter": "latest"
   },
   "devDependencies": {
     "@types/node": "^13.11.1",
     "@types/react": "^16.9.34",
     "@types/socket.io-client": "^1.4.32",
+    "@types/styletron-engine-atomic": "^1.1.0",
+    "@types/styletron-react": "^5.0.2",
+    "@types/styletron-standard": "^2.0.0",
     "typescript": "^3.8.3"
   }
 }

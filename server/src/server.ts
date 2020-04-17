@@ -5,9 +5,12 @@ import {Worker} from "mediasoup/lib/Worker";
 import {Router} from "mediasoup/lib/Router";
 import * as http from "http";
 import {Server} from "http";
-import {WebRtcTransport} from "mediasoup/lib/WebRtcTransport";
-import {Producer} from "mediasoup/lib/Producer";
 import {Consumer} from "mediasoup/lib/Consumer";
+import {Producer} from "mediasoup/lib/Producer";
+import {WebRtcTransport} from "mediasoup/lib/WebRtcTransport";
+import {DtlsParameters} from "mediasoup/src/WebRtcTransport";
+import {MediaKind, RtpParameters} from "mediasoup/src/RtpParameters";
+import {RtpCapabilities} from "mediasoup/lib/RtpParameters";
 
 const mediasoup = require('mediasoup');
 
@@ -16,20 +19,32 @@ const config = require('./config');
 
 const port: number = parseInt(process.env.PORT) || 3001;
 
-interface Room {
-    peers: {},
-    transports: {},
-    producers: [],
-    consumers: []
+interface Member {
+    id: string;
+    transports: {
+        [id: string]: WebRtcTransport
+    };
+    producers: {
+        [id: string]: Producer
+    };
+    consumers: {
+        [id: string]: Consumer
+    };
 }
 
-let producer: Producer = null;
-let consumer: Consumer = null;
-let consumerTransport: any = null;
+interface Director extends Member {
+}
 
-// Start webserver
+interface Room {
+    id: string,
+    members: Member[],
+    director?: Director
+}
+
+const rooms: Room[] = [];
+
+
 const main = async () => {
-
     const app: Express = express();
     app.use(cors({origin: true}));
     app.options('*', cors());
@@ -45,76 +60,190 @@ const main = async () => {
     const mediaCodecs = config.mediasoup.router.mediaCodecs;
     mediasoupRouter = await worker.createRouter({mediaCodecs});
 
-    const handleConnection = (socket: SocketIO.Socket) => {
-        console.log("New connection from " + socket.id);
-        let producerTransport: WebRtcTransport;
-
-        if (producer) {
-            socket.emit('producer-added');
+    app.post("/rooms/create", async (req, res) => {
+        const roomName: string = req.body.name;
+        if (rooms.find((room: Room) => room.id === roomName) !== null) {
+            return res.status(400).json({error: 'Room already exsists'});
         }
-
-        socket.on("join", (data: {
-            room: string
-        }) => {
-            console.log("Joining " + data.room);
+        rooms.push({
+            id: roomName,
+            members: []
         });
+        res.status(200).json({status: 'ok'});
+    });
 
-        socket.on("getRouterRtpCapabilities", (data, callback) => {
-            console.log("Sending Router Rtp Capabilities");
-            callback(mediasoupRouter.rtpCapabilities);
-        });
+    //TODO: Remove the following line
+    rooms.push({
+        id: 'myroom',
+        members: [],
+    });
 
-        socket.on("create-producer-transport", async (data, callback) => {
-            console.log("create-producer-transport");
-            try {
-                const {transport, params} = await createWebRtcTransport();
-                producerTransport = transport;
-                callback(params);
-            } catch (err) {
-                console.error(err);
-                callback({error: err.message});
+    const handleConnection = (socket: SocketIO.Socket) => {
+        let room: Room | undefined;
+        let member: Member | undefined;
+        console.log("New connection from " + socket.id);
+
+        /*** JOIN ROOM (answer: rtp capabilities) ***/
+        socket.on('join-room', async (data: {
+            memberId: string,
+            roomName: string,
+            isDirector: boolean
+        }, callback) => {
+            console.log(socket.id + ": join-room");
+            //TODO: If switching room, disconnect first
+            room = rooms.find((room: Room) => room.id === data.roomName);
+            if (room) {
+                member = {
+                    id: data.memberId,
+                    transports: {},
+                    consumers: {},
+                    producers: {}
+                };
+                if (data.isDirector) {
+                    //TODO: Handle if director is already present
+                    room.director = member;
+                } else {
+                    room.members.push(member);
+                }
+                callback(mediasoupRouter.rtpCapabilities);
+            } else {
+                callback(null);
             }
         });
 
-        socket.on('connect-producer-transport', async (data, callback) => {
-            console.log("connect-producer-transport");
-            await producerTransport.connect({dtlsParameters: data.dtlsParameters});
-            callback();
-        });
-
-        socket.on('create-consumer-transport', async (data, callback) => {
-            try {
-                const { transport, params } = await createWebRtcTransport();
-                consumerTransport = transport;
-                callback(params);
-            } catch (err) {
-                console.error(err);
-                callback({ error: err.message });
+        /*** CREATE TRANSPORT ***/
+        socket.on('create-send-transport', async (data: {}, callback) => {
+            console.log(socket.id + ": create-send-transport");
+            if (!room || !member) {
+                console.error("create-transport before successful join-room");
+                return;
             }
+            const transport: WebRtcTransport = await mediasoupRouter.createWebRtcTransport({
+                listenIps: config.mediasoup.webRtcTransport.listenIps,
+                enableUdp: true,
+                enableTcp: true,
+                preferUdp: true,
+                initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
+                appData: {peerId: member.id, clientDirection: 'send'}
+            });
+            if (config.mediasoup.webRtcTransport.maxIncomingBitrate) {
+                try {
+                    await transport.setMaxIncomingBitrate(config.mediasoup.webRtcTransport.maxIncomingBitrate);
+                } catch (error) {
+                }
+            }
+            member.transports[transport.id] = transport;
+            callback({
+                id: transport.id,
+                iceParameters: transport.iceParameters,
+                iceCandidates: transport.iceCandidates,
+                dtlsParameters: transport.dtlsParameters
+            });
         });
 
-        socket.on('connect-consumer-transport', async (data, callback) => {
-            await consumerTransport.connect({ dtlsParameters: data.dtlsParameters });
-            callback();
+        socket.on('create-receive-transport', async (data: {
+            rtpCapabilities: RtpCapabilities
+        }, callback) => {
+            console.log(socket.id + ": create-receive-transport");
+            if (!room || !member) {
+                console.error("create-transport before successful join-room");
+                return;
+            }
+            const transport: WebRtcTransport = await mediasoupRouter.createWebRtcTransport({
+                listenIps: config.mediasoup.webRtcTransport.listenIps,
+                enableUdp: true,
+                enableTcp: true,
+                preferUdp: true,
+                initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
+                appData: {peerId: member.id, clientDirection: 'recv'}
+            });
+            member.transports[transport.id] = transport;
+            callback({
+                id: transport.id,
+                iceParameters: transport.iceParameters,
+                iceCandidates: transport.iceCandidates,
+                dtlsParameters: transport.dtlsParameters
+            });
         });
 
-        socket.on('produce', async (data, callback) => {
-            const {kind, rtpParameters} = data;
-            producer = await producerTransport.produce({kind, rtpParameters});
+        socket.on('connect-transport', async (data: {
+            transportId: string;
+            dtlsParameters: DtlsParameters;
+        }, callback) => {
+            console.log(socket.id + ": connect-transport " + data.transportId);
+            const transport: WebRtcTransport = member.transports[data.transportId];
+            if (!transport) {
+                callback({error: 'Could not find transport ' + data.transportId});
+                return;
+            }
+            await transport.connect({dtlsParameters: data.dtlsParameters});
+            callback({connected: true});
+        });
+
+        socket.on('send-track', async (data: {
+            transportId: string;
+            rtpParameters: RtpParameters
+            kind: MediaKind;
+        }, callback) => {
+            console.log(socket.id + ": send-track");
+            const transport: WebRtcTransport = member.transports[data.transportId];
+            if (!transport) {
+                callback({error: 'Could not find transport ' + data.transportId});
+                return;
+            }
+            const producer: Producer = await transport.produce({
+                kind: data.kind,
+                rtpParameters: data.rtpParameters
+            });
+            producer.on('transportclose', () => {
+                console.log('producer\'s transport closed', producer.id);
+                //closeProducer(producer);
+            });
+            member.producers[producer.id] = producer;
+            // Inform all about new producer
+            socket.emit('producer-added', {
+                id: producer.id
+            });
             callback({id: producer.id});
-
-            // inform clients about new producer
-            socket.broadcast.emit('newProducer');
         });
 
-        socket.on('consume', async (data, callback) => {
-            callback(await createConsumer(producer, data.rtpCapabilities));
+        socket.on('consume', async (data: {
+            producerId: string;
+            transportId: string;
+            rtpCapabilities: RtpCapabilities
+        }, callback) => {
+            console.log(socket.id + ": consume");
+            const transport: WebRtcTransport = member.transports[data.transportId];
+            if (!transport) {
+                callback({error: 'Could not find transport ' + data.transportId});
+                return;
+            }
+            const consumer: Consumer = await transport.consume({
+                producerId: data.producerId,
+                rtpCapabilities: data.rtpCapabilities,
+                paused: true
+            });
+            member.consumers[consumer.id] = consumer;
+            callback({
+                id: consumer.id,
+                producerId: consumer.producerId,
+                kind: consumer.kind,
+                rtpParameters: consumer.rtpParameters
+            });
         });
 
-        socket.on('resume', async (data, callback) => {
-            await consumer.resume();
-            callback();
-        });
+        socket.on('finish-consume', async (data: {
+            id: string;
+        }, callback) => {
+            console.log(socket.id + ": finished consume");
+            const consumer: Consumer = member.consumers[data.id];
+            if (!consumer) {
+                callback({error: 'consumer not found'});
+            }
+            consumer.resume().then(
+                () => callback()
+            );
+        })
     };
     const socketServer: SocketIO.Server = SocketIO(webServer);
     socketServer.on("connection", handleConnection);
@@ -127,67 +256,18 @@ const main = async () => {
 };
 main();
 
-async function createWebRtcTransport() {
+async function createWebRtcTransport(router: Router, {peerId, direction}: any): Promise<WebRtcTransport> {
     const {
-        maxIncomingBitrate,
+        listenIps,
         initialAvailableOutgoingBitrate
     } = config.mediasoup.webRtcTransport;
 
-    const transport: WebRtcTransport = await mediasoupRouter.createWebRtcTransport({
-        listenIps: config.mediasoup.webRtcTransport.listenIps,
+    return await router.createWebRtcTransport({
+        listenIps: listenIps,
         enableUdp: true,
         enableTcp: true,
         preferUdp: true,
-        initialAvailableOutgoingBitrate,
+        initialAvailableOutgoingBitrate: initialAvailableOutgoingBitrate,
+        appData: {peerId, clientDirection: direction}
     });
-    if (maxIncomingBitrate) {
-        try {
-            await transport.setMaxIncomingBitrate(maxIncomingBitrate);
-        } catch (error) {
-        }
-    }
-    return {
-        transport,
-        params: {
-            id: transport.id,
-            iceParameters: transport.iceParameters,
-            iceCandidates: transport.iceCandidates,
-            dtlsParameters: transport.dtlsParameters
-        },
-    };
-}
-
-async function createConsumer(producer: Producer, rtpCapabilities: any) {
-    if (!mediasoupRouter.canConsume(
-        {
-            producerId: producer.id,
-            rtpCapabilities,
-        })
-    ) {
-        console.error('can not consume');
-        return;
-    }
-    try {
-        consumer = await consumerTransport.consume({
-            producerId: producer.id,
-            rtpCapabilities,
-            paused: producer.kind === 'video',
-        });
-    } catch (error) {
-        console.error('consume failed', error);
-        return;
-    }
-
-    if (consumer.type === 'simulcast') {
-        await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 });
-    }
-
-    return {
-        producerId: producer.id,
-        id: consumer.id,
-        kind: consumer.kind,
-        rtpParameters: consumer.rtpParameters,
-        type: consumer.type,
-        producerPaused: consumer.producerPaused
-    };
 }

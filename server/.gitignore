@@ -5,3 +5,4 @@ package-lock.json
 src/firebase-adminsdk.json
 ecosystem.config.js
 .idea
+env.ts

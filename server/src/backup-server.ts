@@ -1,158 +1,120 @@
 import express, {Express} from "express";
-import socketIO from "socket.io";
 import cors from "cors";
-import {Member} from "./models/Member";
-import mediasoup from "mediasoup";
-import https, {Server as HTTPSServer} from "https";
-import fs from "fs";
+import SocketIO from "socket.io";
 import {Worker} from "mediasoup/lib/Worker";
 import {Router} from "mediasoup/lib/Router";
-import {addMemberToServer, removeMemberFromServer} from "./api/firebase";
-import {Server} from "./models/Server";
-import ip from "ip";
+import * as http from "http";
+import {Server} from "http";
+import {WebRtcTransport} from "mediasoup/lib/WebRtcTransport";
+import {Producer} from "mediasoup/lib/Producer";
+import {Consumer} from "mediasoup/lib/Consumer";
 
-const config = require("./config");
+const mediasoup = require('mediasoup');
 
-// Global variables
-let worker: Worker;
-let webServer: HTTPSServer;
-let socketServer;
-let expressApp: Express;
 let mediasoupRouter: Router;
+const config = require('./config');
 
-(async () => {
-    try {
-        await runExpressApp();
-        await runWebServer();
-        await runSocketServer();
-        await runMediasoupWorker();
-    } catch (err) {
-        console.error(err);
-    }
-})();
+const port: number = parseInt(process.env.PORT) || 3001;
 
+interface Room {
+    peers: {},
+    transports: {},
+    producers: [],
+    consumers: []
+}
 
-const runExpressApp = async () => {
-    expressApp = express();
-};
+let producer: Producer = null;
+let consumer: Consumer = null;
+let consumerTransport: any = null;
 
-const runWebServer = async () => {
-    const {sslKey, sslCrt} = config;
-    if (!fs.existsSync(sslKey) || !fs.existsSync(sslCrt)) {
-        console.error("SSL files are not found. check your config.js file");
-        process.exit(0);
-    }
-    const tls = {
-        cert: fs.readFileSync(sslCrt),
-        key: fs.readFileSync(sslKey),
-    };
-    webServer = https.createServer(tls, expressApp);
-    webServer.on("error", (err) => {
-        console.error("starting web server failed:", err.message);
-    });
+// Start webserver
+const main = async () => {
 
-    await new Promise((resolve) => {
-        const {listenIp, listenPort} = config;
-        webServer.listen(listenPort, listenIp, () => {
-            const listenIps = config.mediasoup.webRtcTransport.listenIps[0];
-            const ip = listenIps.announcedIp || listenIps.ip;
-            console.log("server is running");
-            console.log(`open https://${ip}:${listenPort} in your web browser`);
-            resolve();
-        });
-    });
-};
+    const app: Express = express();
+    app.use(cors({origin: true}));
+    app.options('*', cors());
 
-// Create express instance
-const app = express();
-app.use(cors({origin: true}));
-app.get("/", function (req: any, res: any) {
-    res.send("Hello World!");
-});
+    const webServer: Server = http.createServer({}, app);
 
-const runSocketServer = async () => {
-    const server: Server = {
-        ip: ip.address("public"),
-        port: config.listenPort,
-        members: []
-    };
-
-    socketServer = socketIO(webServer);
-    socketServer.on("connection", (socket) => {
-
-        console.log("New connection from " + socket.id + " with query: " + socket.handshake.query);
-
-        socket.on("getRouterRtpCapabilities", (data, callback) => {
-            callback(mediasoupRouter.rtpCapabilities);
-        });
-
-        socket.broadcast.emit("add-users", {
-            users: [socket.id]
-        });
-
-        socket.on("connect", (data: {
-            member: Member;
-        }) => {
-            // Also add to server list
-            addMemberToServer(data.member, server).then(
-                () => socket.emit("add-users", socket.id)
-            );
-        });
-
-        socket.on("disconnect", (data: {
-            member: Member;
-        }) => {
-            removeMemberFromServer(data.member, server).then(
-                () => socket.emit("remove-users", socket.id)
-            );
-        });
-
-        socket.on("make-offer", (data) => {
-            socket.to(data.to).emit("offer-made", {
-                offer: data.offer,
-                socket: socket.id
-            });
-        });
-
-        socket.on("make-answer", (data) => {
-            socket.to(data.to).emit("answer-made", {
-                socket: socket.id,
-                answer: data.answer
-            });
-        });
-
-        socket.on("send-candidate", (data) => {
-            socket.to(data.to).emit("candidate-sent", {
-                socket: socket.id,
-                candidate: data.candidate
-            });
-        });
-
-        socket.on("mediasoup-request", (request, cb) => {
-            switch (request.method) {
-                case "queryRoom":
-
-            }
-        });
-    });
-};
-
-const runMediasoupWorker = async () => {
-    worker = await mediasoup.createWorker({
+    const worker: Worker = await mediasoup.createWorker({
         logLevel: config.mediasoup.worker.logLevel,
         logTags: config.mediasoup.worker.logTags,
         rtcMinPort: config.mediasoup.worker.rtcMinPort,
-        rtcMaxPort: config.mediasoup.worker.rtcMaxPort,
+        rtcMaxPort: config.mediasoup.worker.rtcMaxPort
     });
-
-    worker.on("died", () => {
-        console.error("mediasoup worker died, exiting in 2 seconds... [pid:%d]", worker.pid);
-        setTimeout(() => process.exit(1), 2000);
-    });
-
     const mediaCodecs = config.mediasoup.router.mediaCodecs;
     mediasoupRouter = await worker.createRouter({mediaCodecs});
+
+    const handleConnection = (socket: SocketIO.Socket) => {
+        console.log("New connection from " + socket.id);
+        let producerTransport: WebRtcTransport;
+
+        if (producer) {
+            socket.emit('producer-added');
+        }
+
+        socket.on("join", (data: {
+            room: string
+        }) => {
+            console.log("Joining " + data.room);
+        });
+
+        socket.on("getRouterRtpCapabilities", (data, callback) => {
+            console.log("Sending Router Rtp Capabilities");
+            callback(mediasoupRouter.rtpCapabilities);
+        });
+
+        socket.on("create-producer-transport", async (data, callback) => {
+            console.log("create-producer-transport");
+            try {
+                const {transport, params} = await createWebRtcTransport();
+                producerTransport = transport;
+                callback(params);
+            } catch (err) {
+                console.error(err);
+                callback({error: err.message});
+            }
+        });
+
+        socket.on('connect-producer-transport', async (data, callback) => {
+            console.log("connect-producer-transport");
+            await producerTransport.connect({dtlsParameters: data.dtlsParameters});
+            callback();
+        });
+
+        socket.on('connect-consumer-transport', async (data, callback) => {
+            await consumerTransport.connect({ dtlsParameters: data.dtlsParameters });
+            callback();
+        });
+
+        socket.on('produce', async (data, callback) => {
+            const {kind, rtpParameters} = data;
+            producer = await producerTransport.produce({kind, rtpParameters});
+            callback({id: producer.id});
+
+            // inform clients about new producer
+            socket.broadcast.emit('newProducer');
+        });
+
+        socket.on('consume', async (data, callback) => {
+            callback(await createConsumer(producer, data.rtpCapabilities));
+        });
+
+        socket.on('resume', async (data, callback) => {
+            await consumer.resume();
+            callback();
+        });
+    };
+    const socketServer: SocketIO.Server = SocketIO(webServer);
+    socketServer.on("connection", handleConnection);
+    socketServer.origins('*:*');
+
+    webServer.listen(port, () => {
+        console.log("Running digital stage on port " + port)
+    });
+
 };
+main();
 
 async function createWebRtcTransport() {
     const {
@@ -160,7 +122,7 @@ async function createWebRtcTransport() {
         initialAvailableOutgoingBitrate
     } = config.mediasoup.webRtcTransport;
 
-    const transport = await mediasoupRouter.createWebRtcTransport({
+    const transport: WebRtcTransport = await mediasoupRouter.createWebRtcTransport({
         listenIps: config.mediasoup.webRtcTransport.listenIps,
         enableUdp: true,
         enableTcp: true,
@@ -181,5 +143,40 @@ async function createWebRtcTransport() {
             iceCandidates: transport.iceCandidates,
             dtlsParameters: transport.dtlsParameters
         },
+    };
+}
+
+async function createConsumer(producer: Producer, rtpCapabilities: any) {
+    if (!mediasoupRouter.canConsume(
+        {
+            producerId: producer.id,
+            rtpCapabilities,
+        })
+    ) {
+        console.error('can not consume');
+        return;
+    }
+    try {
+        consumer = await consumerTransport.consume({
+            producerId: producer.id,
+            rtpCapabilities,
+            paused: producer.kind === 'video',
+        });
+    } catch (error) {
+        console.error('consume failed', error);
+        return;
+    }
+
+    if (consumer.type === 'simulcast') {
+        await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 });
+    }
+
+    return {
+        producerId: producer.id,
+        id: consumer.id,
+        kind: consumer.kind,
+        rtpParameters: consumer.rtpParameters,
+        type: consumer.type,
+        producerPaused: consumer.producerPaused
     };
 }

@@ -6,8 +6,8 @@ module.exports = {
     mediasoup: {
         // Worker settings
         worker: {
-            rtcMinPort: process.env.MEDIASOUP_MIN_PORT || 40000,
-            rtcMaxPort: process.env.MEDIASOUP_MAX_PORT || 49999,
+            rtcMinPort: 40000,
+            rtcMaxPort: 49999,
             logLevel: "warn",
             logTags: [
                 "info",
@@ -82,8 +82,8 @@ module.exports = {
         webRtcTransport: {
             listenIps: [
                 {
-                    ip: process.env.MEDIASOUP_LISTEN_IP || "167.172.168.55",
-                    announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP,
+                    ip: "167.172.168.55",
+                    announcedIp: "167.172.168.55",
                 }
             ],
             maxIncomingBitrate: 1500000,

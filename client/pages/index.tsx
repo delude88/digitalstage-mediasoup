@@ -89,7 +89,7 @@ class Index extends Component<{}, {
         if (!this.state.device) {
             throw new Error("Mediasoup device is not ready");
         }
-        const socket: SocketWithRequest = extend(SocketIOClient("167.172.168.55:3001"));
+        const socket: SocketWithRequest = extend(SocketIOClient("thepanicure.de:3001"));
 
         console.log("connect 1: join room");
         const routerRtpCapabilities = await socket.request('join-room', {

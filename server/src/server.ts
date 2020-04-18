@@ -58,6 +58,10 @@ const main = async () => {
     const mediaCodecs = config.mediasoup.router.mediaCodecs;
     mediasoupRouter = await worker.createRouter({mediaCodecs});
 
+    app.get("/", (req, res) => {
+        res.status(200).json({hello: "world"});
+    });
+
     app.post("/rooms/create", async (req, res) => {
         const roomName: string = req.body.name;
         if (rooms.find((room: Room) => room.id === roomName) !== null) {

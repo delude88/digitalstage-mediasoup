@@ -11,6 +11,7 @@ import {WebRtcTransport} from "mediasoup/lib/WebRtcTransport";
 import {DtlsParameters} from "mediasoup/src/WebRtcTransport";
 import {MediaKind, RtpParameters} from "mediasoup/src/RtpParameters";
 import {RtpCapabilities} from "mediasoup/lib/RtpParameters";
+import * as fs from "fs";
 
 const mediasoup = require("mediasoup");
 
@@ -48,8 +49,11 @@ const main = async () => {
     app.options("*", cors());
 
     const webServer: Server = https.createServer({
-        cert: config.sslCrt,
-        key: config.sslKey
+        key: fs.readFileSync(config.sslKey),
+        cert: fs.readFileSync(config.sslCrt),
+        ca: fs.readFileSync(config.ca),
+        requestCert: false,
+        rejectUnauthorized: false
     }, app);
 
     const worker: Worker = await mediasoup.createWorker({

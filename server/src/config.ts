@@ -3,6 +3,7 @@ module.exports = {
     listenPort: 3001,
     sslCrt: "/etc/letsencrypt/live/www.thepanicure.de/fullchain.pem",
     sslKey: "/etc/letsencrypt/live/www.thepanicure.de/privkey.pem",
+    ca: "/etc/letsencrypt/live/www.thepanicure.de/chain.pem",
     mediasoup: {
         // Worker settings
         worker: {

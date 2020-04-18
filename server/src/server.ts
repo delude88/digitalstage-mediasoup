@@ -3,8 +3,8 @@ import cors from "cors";
 import SocketIO from "socket.io";
 import {Worker} from "mediasoup/lib/Worker";
 import {Router} from "mediasoup/lib/Router";
-import * as http from "http";
-import {Server} from "http";
+import * as https from "https";
+import {Server} from "https";
 import {Consumer} from "mediasoup/lib/Consumer";
 import {Producer} from "mediasoup/lib/Producer";
 import {WebRtcTransport} from "mediasoup/lib/WebRtcTransport";
@@ -47,7 +47,10 @@ const main = async () => {
     app.use(cors({origin: true}));
     app.options("*", cors());
 
-    const webServer: Server = http.createServer({}, app);
+    const webServer: Server = https.createServer({
+        cert: config.sslCrt,
+        key: config.sslKey
+    }, app);
 
     const worker: Worker = await mediasoup.createWorker({
         logLevel: config.mediasoup.worker.logLevel,

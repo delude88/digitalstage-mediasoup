@@ -1,8 +1,8 @@
 module.exports = {
     listenIp: "0.0.0.0",
     listenPort: 3001,
-    sslCrt: "/etc/letsencrypt/csr/0000_csr-certbot.pem",
-    sslKey: "/etc/letsencrypt/keys/0000_csr-certbot.pem",
+    sslCrt: "/etc/letsencrypt/live/www.thepanicure.de/fullchain.pem",
+    sslKey: "/etc/letsencrypt/live/www.thepanicure.de/privkey.pem",
     mediasoup: {
         // Worker settings
         worker: {

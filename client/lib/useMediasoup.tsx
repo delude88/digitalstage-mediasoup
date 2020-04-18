@@ -54,7 +54,7 @@ const useMediasoup = () => {
         if (!device) {
             throw new Error("Mediasoup device is not ready");
         }
-        const socket: SocketWithRequest = extend(SocketIOClient(" thepanicure.de:3001"));
+        const socket: SocketWithRequest = extend(SocketIOClient("www.thepanicure.de:3001"));
 
         console.log("connect 1: join room");
         const routerRtpCapabilities = await socket.request('join-room', {

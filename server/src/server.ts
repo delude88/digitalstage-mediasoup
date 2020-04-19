@@ -89,7 +89,7 @@ const main = async () => {
 
     const handleConnection = (socket: SocketIO.Socket) => {
         let room: Room | undefined;
-        let member: Member | undefined;
+        let user: Member | undefined;
         console.log("New connection from " + socket.id);
 
         const sendDirector = (director: Director) => {
@@ -128,7 +128,7 @@ const main = async () => {
             //TODO: If switching room, disconnect first
             room = rooms.find((room: Room) => room.id === data.roomName);
             if (room) {
-                member = {
+                user = {
                     id: data.memberId,
                     transports: {},
                     consumers: {},
@@ -136,9 +136,9 @@ const main = async () => {
                 };
                 if (data.isDirector) {
                     //TODO: Handle if director is already present
-                    room.director = member;
+                    room.director = user;
                 } else {
-                    room.members.push(member);
+                    room.members.push(user);
                 }
                 callback(mediasoupRouter.rtpCapabilities);
             } else {
@@ -149,7 +149,7 @@ const main = async () => {
         /*** CREATE SEND TRANSPORT ***/
         socket.on("create-send-transport", async (data: {}, callback) => {
             console.log(socket.id + ": create-send-transport");
-            if (!room || !member) {
+            if (!room || !user) {
                 console.error("create-transport before successful join-room");
                 return;
             }
@@ -159,7 +159,7 @@ const main = async () => {
                 enableTcp: true,
                 preferUdp: true,
                 initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
-                appData: {peerId: member.id, clientDirection: "send"}
+                appData: {peerId: user.id, clientDirection: "send"}
             });
             if (config.mediasoup.webRtcTransport.maxIncomingBitrate) {
                 try {
@@ -167,7 +167,7 @@ const main = async () => {
                 } catch (error) {
                 }
             }
-            member.transports[transport.id] = transport;
+            user.transports[transport.id] = transport;
             callback({
                 id: transport.id,
                 iceParameters: transport.iceParameters,
@@ -181,7 +181,7 @@ const main = async () => {
             rtpCapabilities: RtpCapabilities;
         }, callback) => {
             console.log(socket.id + ": create-receive-transport");
-            if (!room || !member) {
+            if (!room || !user) {
                 console.error("create-transport before successful join-room");
                 return;
             }
@@ -191,9 +191,9 @@ const main = async () => {
                 enableTcp: true,
                 preferUdp: true,
                 initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
-                appData: {peerId: member.id, clientDirection: "recv"}
+                appData: {peerId: user.id, clientDirection: "recv"}
             });
-            member.transports[transport.id] = transport;
+            user.transports[transport.id] = transport;
             callback({
                 id: transport.id,
                 iceParameters: transport.iceParameters,
@@ -208,7 +208,7 @@ const main = async () => {
             dtlsParameters: DtlsParameters;
         }, callback) => {
             console.log(socket.id + ": connect-transport " + data.transportId);
-            const transport: WebRtcTransport = member.transports[data.transportId];
+            const transport: WebRtcTransport = user.transports[data.transportId];
             if (!transport) {
                 callback({error: "Could not find transport " + data.transportId});
                 return;
@@ -225,7 +225,7 @@ const main = async () => {
             kind: MediaKind;
         }, callback) => {
             console.log(socket.id + ": send-track");
-            const transport: WebRtcTransport = member.transports[data.transportId];
+            const transport: WebRtcTransport = user.transports[data.transportId];
             if (!transport) {
                 callback({error: "Could not find transport " + data.transportId});
                 return;
@@ -238,10 +238,11 @@ const main = async () => {
                 console.log("producer's transport closed", producer.id);
                 //closeProducer(producer);
             });
-            member.producers[producer.id] = producer;
+            user.producers[producer.id] = producer;
             // Inform all about new producer
             socket.emit("producer-added", {
-                id: producer.id
+                userId: user.id,
+                producerId: producer.id
             });
             callback({id: producer.id});
         });
@@ -253,7 +254,7 @@ const main = async () => {
             rtpCapabilities: RtpCapabilities;
         }, callback) => {
             console.log(socket.id + ": consume");
-            const transport: WebRtcTransport = member.transports[data.transportId];
+            const transport: WebRtcTransport = user.transports[data.transportId];
             if (!transport) {
                 callback({error: "Could not find transport " + data.transportId});
                 return;
@@ -263,7 +264,7 @@ const main = async () => {
                 rtpCapabilities: data.rtpCapabilities,
                 paused: true
             });
-            member.consumers[consumer.id] = consumer;
+            user.consumers[consumer.id] = consumer;
             callback({
                 id: consumer.id,
                 producerId: consumer.producerId,
@@ -279,7 +280,7 @@ const main = async () => {
             id: string;
         }, callback) => {
             console.log(socket.id + ": finished consume");
-            const consumer: Consumer = member.consumers[data.id];
+            const consumer: Consumer = user.consumers[data.id];
             if (!consumer) {
                 callback({error: "consumer not found"});
             }

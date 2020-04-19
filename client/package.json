@@ -25,7 +25,8 @@
     "socket.io-client": "latest",
     "styletron-engine-atomic": "^1.4.6",
     "styletron-react": "^5.2.7",
-    "webrtc-adapter": "latest"
+    "webrtc-adapter": "latest",
+    "standardized-audio-context": "latest"
   },
   "devDependencies": {
     "@types/node": "^13.11.1",

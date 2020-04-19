@@ -5,6 +5,12 @@ import SocketIOClient from "socket.io-client";
 import {Transport} from "mediasoup-client/lib/Transport";
 import * as config from "./../env";
 
+interface RemoteMember {
+    id: string;
+    audioTracks: MediaStreamTrack[],
+    videoTracks: MediaStreamTrack[]
+}
+
 const useMediasoup = () => {
     const [device, setDevice] = useState<mediasoup.Device>();
     const [sendTransport, setSendTransport] = useState<mediasoup.types.Transport>();
@@ -13,6 +19,9 @@ const useMediasoup = () => {
     const [audioProducers, setAudioProducers] = useState<mediasoup.types.Producer[]>([]);
     const [consumers, setConsumers] = useState<mediasoup.types.Consumer[]>([]);
     const [connected, setConnected] = useState<boolean>(false);
+
+    const [remoteMembers, setRemoteMembers] = useState<RemoteMember[]>();
+    const [director, setDirector] = useState<RemoteMember>();
 
     useEffect(() => {
         try {
@@ -140,12 +149,13 @@ const useMediasoup = () => {
 
         // Handle incoming consume reports
         socket.on('producer-added', async (data: {
-            id: string
+            userId: string,
+            producerId: string
         }) => {
-            console.log("new producer" + data.id);
+            console.log("new producer" + data.producerId);
 
             const consumerOptions = await socket.request('consume', {
-                producerId: data.id,
+                producerId: data.producerId,
                 transportId: receiveTransport.id,
                 rtpCapabilities: device.rtpCapabilities
             });
@@ -165,7 +175,9 @@ const useMediasoup = () => {
         connected,
         connect,
         sendStream,
-        consumers
+        consumers,
+        remoteMembers,
+        director
     };
 };
 

@@ -177,12 +177,13 @@ class Index extends Component<{}, {
 
         // Handle incoming consume reports
         socket.on('producer-added', async (data: {
-            id: string
+            userId: string,
+            producerId: string
         }) => {
-            console.log("new producer" + data.id);
+            console.log("new producer" + data.producerId);
 
             const consumerOptions = await socket.request('consume', {
-                producerId: data.id,
+                producerId: data.producerId,
                 transportId: receiveTransport.id,
                 rtpCapabilities: this.state.device.rtpCapabilities
             });

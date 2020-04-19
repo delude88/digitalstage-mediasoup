@@ -9,11 +9,26 @@ import VideoPlayer from "../components/VideoPlayer";
 import Container from "../components/ui/Container";
 import {fixWebRTC} from "../lib/fixWebRTC";
 import VideoTrackPlayer from "../components/VideoTrackPlayer";
+import * as config from "./../env";
+import AudioQualitySettings from "../models/AudioQualitySettings";
+
+const HighAudioQualitySettings: AudioQualitySettings = {
+    autoGainControl: false,
+    channelCount: 1,
+    echoCancellation: false,
+    latency: 0,
+    noiseSuppression: false,
+    sampleRate: 48000,
+    sampleSize: 16,
+    volume: 1.0
+};
+
 
 export default () => {
     const [isDirector, setDirector] = useState<boolean>(false);
     const [userName, setUserName] = useState<string>("name");
     const [roomName, setRoomName] = useState<string>("myroom");
+    const [useHighAudioQuality, setHighAudioQuality] = useState<boolean>(false);
     const {connect, connected, consumers, sendStream} = useMediasoup();
     const [localStream, setLocalStream] = useState<MediaStream>();
 
@@ -25,9 +40,12 @@ export default () => {
         if (localStream)
             return;
         return navigator.mediaDevices.getUserMedia({
-            video: true,
+            video: {
+                width: config.WEBCAM_WIDTH,
+                height: config.WEBCAM_HEIGHT
+            },
             //TODO: Implement more audio options
-            audio: true
+            audio: useHighAudioQuality ? HighAudioQualitySettings : true
         }).then(
             (stream: MediaStream) => {
                 setLocalStream(stream);
@@ -44,6 +62,11 @@ export default () => {
                 </FormControl>
                 <FormControl label="Room">
                     <Input value={roomName} onChange={(e) => setRoomName(e.currentTarget.value)}/>
+                </FormControl>
+                <FormControl>
+                    <Checkbox onChange={e => setHighAudioQuality(e.currentTarget.checked)} checked={useHighAudioQuality}>
+                        High Audio Quality
+                    </Checkbox>
                 </FormControl>
                 <FormControl>
                     <Checkbox onChange={e => setDirector(e.currentTarget.checked)} checked={isDirector}>

@@ -8,6 +8,7 @@ import {Transport} from "mediasoup-client/lib/Transport";
 import VideoPlayer from "../components/VideoPlayer";
 import VideoTrackPlayer from "../components/VideoTrackPlayer";
 import AudioTrackPlayer from "../components/AudioTrackPlayer";
+import * as config from "./../env";
 
 class Index extends Component<{}, {
     device?: mediasoup.Device;
@@ -89,7 +90,7 @@ class Index extends Component<{}, {
         if (!this.state.device) {
             throw new Error("Mediasoup device is not ready");
         }
-        const socket: SocketWithRequest = extend(SocketIOClient("www.thepanicure.de:3001"));
+        const socket: SocketWithRequest = extend(SocketIOClient(config.SERVER_URL + ":" + config.SERVER_PORT));
 
         console.log("connect 1: join room");
         const routerRtpCapabilities = await socket.request('join-room', {
@@ -141,6 +142,7 @@ class Index extends Component<{}, {
             if (state === 'closed' || state === 'failed' || state === 'disconnected') {
                 console.error("Disconnect by server side");
             }
+
         });
 
         /** CONNECT 3: Create receive transport **/
@@ -164,7 +166,10 @@ class Index extends Component<{}, {
         });
         receiveTransport.on('connectionstatechange', async (state) => {
             console.log("receiveTransport: connectionstatechange " + state);
-            if (state === 'closed' || state === 'failed' || state === 'disconnected') {
+            if (state === 'connected') {
+                //TODO: This is too late or? connected is only when one consumer is requested already
+                console.log("TODO: Request existing consumers")
+            } else if (state === 'closed' || state === 'failed' || state === 'disconnected') {
                 console.error("Disconnect by server side");
             }
         });

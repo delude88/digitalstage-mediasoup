@@ -51,7 +51,7 @@ const main = async () => {
     const webServer: Server = https.createServer({
         key: fs.readFileSync(config.sslKey),
         cert: fs.readFileSync(config.sslCrt),
-        ca: fs.readFileSync(config.ca),
+        ca: config.ca && fs.readFileSync(config.ca),
         requestCert: false,
         rejectUnauthorized: false
     }, app);
@@ -66,7 +66,7 @@ const main = async () => {
     mediasoupRouter = await worker.createRouter({mediaCodecs});
 
     app.get("/", (req, res) => {
-        res.status(200).json({hello: "world"});
+        res.status(200).send("Alive and kickin'");
     });
 
     app.post("/rooms/create", async (req, res) => {
@@ -91,6 +91,32 @@ const main = async () => {
         let room: Room | undefined;
         let member: Member | undefined;
         console.log("New connection from " + socket.id);
+
+        const sendDirector = (director: Director) => {
+            socket.emit("director_added", {
+                id: director.id,
+                producers: Object.values(director.producers).map((producer: Producer) => ({
+                    id: producer.id
+                }))
+            });
+        };
+
+        const sendMember = (member: Member) => {
+            socket.emit("member_added", {
+                id: member.id,
+                producers: Object.values(member.producers).map((producer: Producer) => ({
+                    id: producer.id
+                }))
+            });
+        };
+
+        const onProducerAdded = (member: Member, producer: Producer) => {
+            socket.emit("producer_added", {
+                id: member.id,
+                producerId: producer.id
+            });
+        };
+
 
         /*** JOIN ROOM (answer: rtp capabilities) ***/
         socket.on("join-room", async (data: {
@@ -188,6 +214,7 @@ const main = async () => {
                 return;
             }
             await transport.connect({dtlsParameters: data.dtlsParameters});
+            /*** ANSWER BY SENDING EXISTING MEMBERS AND DIRECTOR ***/
             callback({connected: true});
         });
 

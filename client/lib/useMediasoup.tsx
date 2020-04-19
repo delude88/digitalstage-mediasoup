@@ -3,6 +3,7 @@ import * as mediasoup from 'mediasoup-client';
 import {extend, SocketWithRequest} from "./socket.io-promise";
 import SocketIOClient from "socket.io-client";
 import {Transport} from "mediasoup-client/lib/Transport";
+import * as config from "./../env";
 
 const useMediasoup = () => {
     const [device, setDevice] = useState<mediasoup.Device>();
@@ -54,7 +55,7 @@ const useMediasoup = () => {
         if (!device) {
             throw new Error("Mediasoup device is not ready");
         }
-        const socket: SocketWithRequest = extend(SocketIOClient("www.thepanicure.de:3001"));
+        const socket: SocketWithRequest = extend(SocketIOClient(config.SERVER_URL + ":" + config.SERVER_PORT));
 
         console.log("connect 1: join room");
         const routerRtpCapabilities = await socket.request('join-room', {

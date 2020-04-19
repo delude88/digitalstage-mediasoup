@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "dev": "NODE_ENV=development next dev",
+    "build": "NODE_ENV=development next build",
+    "start": "NODE_ENV=development next start",
+    "publish": "NODE_ENV=production now --prod"
   },
-  "author": "Tobias Hegemann",
+  "author": "Tobias Hegemann <tobias.hegemann@googlemail.com>",
   "license": "MIT",
   "dependencies": {
     "baseui": "^9.71.0",

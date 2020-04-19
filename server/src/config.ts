@@ -1,9 +1,9 @@
 module.exports = {
     listenIp: "0.0.0.0",
     listenPort: 3001,
-    sslCrt: "/etc/letsencrypt/live/www.thepanicure.de/fullchain.pem",
-    sslKey: "/etc/letsencrypt/live/www.thepanicure.de/privkey.pem",
-    ca: "/etc/letsencrypt/live/www.thepanicure.de/chain.pem",
+    sslCrt: process.env.NODE_ENV === "production" ? "/etc/letsencrypt/live/www.thepanicure.de/fullchain.pem" : "./ssl/cert.pem",
+    sslKey: process.env.NODE_ENV === "production" ? "/etc/letsencrypt/live/www.thepanicure.de/privkey.pem" : "./ssl/key.pem",
+    ca: process.env.NODE_ENV === "production" ? "/etc/letsencrypt/live/www.thepanicure.de/chain.pem" : undefined,
     mediasoup: {
         // Worker settings
         worker: {
@@ -35,46 +35,46 @@ module.exports = {
                         channels: 2
                     },
                     {
-                        kind: 'video',
-                        mimeType: 'video/VP8',
+                        kind: "video",
+                        mimeType: "video/VP8",
                         clockRate: 90000,
                         parameters:
                             {
-                                'x-google-start-bitrate': 1000
+                                "x-google-start-bitrate": 1000
                             }
                     },
                     {
-                        kind: 'video',
-                        mimeType: 'video/VP9',
+                        kind: "video",
+                        mimeType: "video/VP9",
                         clockRate: 90000,
                         parameters:
                             {
-                                'profile-id': 2,
-                                'x-google-start-bitrate': 1000
+                                "profile-id": 2,
+                                "x-google-start-bitrate": 1000
                             }
                     },
                     {
-                        kind: 'video',
-                        mimeType: 'video/h264',
+                        kind: "video",
+                        mimeType: "video/h264",
                         clockRate: 90000,
                         parameters:
                             {
-                                'packetization-mode': 1,
-                                'profile-level-id': '4d0032',
-                                'level-asymmetry-allowed': 1,
-                                'x-google-start-bitrate': 1000
+                                "packetization-mode": 1,
+                                "profile-level-id": "4d0032",
+                                "level-asymmetry-allowed": 1,
+                                "x-google-start-bitrate": 1000
                             }
                     },
                     {
-                        kind: 'video',
-                        mimeType: 'video/h264',
+                        kind: "video",
+                        mimeType: "video/h264",
                         clockRate: 90000,
                         parameters:
                             {
-                                'packetization-mode': 1,
-                                'profile-level-id': '42e01f',
-                                'level-asymmetry-allowed': 1,
-                                'x-google-start-bitrate': 1000
+                                "packetization-mode": 1,
+                                "profile-level-id": "42e01f",
+                                "level-asymmetry-allowed": 1,
+                                "x-google-start-bitrate": 1000
                             }
                     }
                 ]
@@ -83,7 +83,7 @@ module.exports = {
         webRtcTransport: {
             listenIps: [
                 {
-                    ip: "167.172.168.55",
+                    ip: process.env.NODE_ENV === "production" ? "167.172.168.55" : "127.0.0.1",
                     announcedIp: null,
                 }
             ],

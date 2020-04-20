@@ -12,15 +12,25 @@ import {DtlsParameters} from "mediasoup/src/WebRtcTransport";
 import {MediaKind, RtpParameters} from "mediasoup/src/RtpParameters";
 import {RtpCapabilities} from "mediasoup/lib/RtpParameters";
 import * as fs from "fs";
+import admin from "firebase-admin";
+import {v4 as uuidv4} from 'uuid';
+// @ts-ignore
+import * as timesyncServer from "timesync/server";
 
 const mediasoup = require("mediasoup");
+
+const serviceAccount = require("./firebase-adminsdk.json");
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
 
 let mediasoupRouter: Router;
 const config = require("./config");
 
-
-interface Member {
-    id: string;
+interface Actor {
+    uid: string;
+    name: string;
+    role: "actor" | "director";
     transports: {
         [id: string]: WebRtcTransport;
     };
@@ -32,21 +42,22 @@ interface Member {
     };
 }
 
-type Director = Member
-
-interface Room {
+interface Stage {
     id: string;
-    members: Member[];
-    director?: Director;
+    name: string;
+    communication: 'p2p' | 'server';
+    type: 'theater' | 'music' | 'conference';
+    actors: Actor[];
 }
 
-const rooms: Room[] = [];
+const stages: Stage[] = [];
 
 
 const main = async () => {
     const app: Express = express();
     app.use(cors({origin: true}));
     app.options("*", cors());
+    app.use('/timesync', timesyncServer.requestHandler);
 
     const webServer: Server = https.createServer({
         key: fs.readFileSync(config.sslKey),
@@ -69,87 +80,36 @@ const main = async () => {
         res.status(200).send("Alive and kickin'");
     });
 
-    app.post("/rooms/create", async (req, res) => {
-        const roomName: string = req.body.name;
-        if (rooms.find((room: Room) => room.id === roomName) !== null) {
-            return res.status(400).json({error: "Room already exsists"});
-        }
-        rooms.push({
-            id: roomName,
-            members: []
-        });
-        res.status(200).json({status: "ok"});
+    //TODO: Remove the following lines
+    stages.push({
+        id: "stage1",
+        name: "My first Stage with mediasoup",
+        communication: "server",
+        type: "music",
+        actors: []
     });
-
-    //TODO: Remove the following line
-    rooms.push({
-        id: "myroom",
-        members: [],
+    stages.push({
+        id: "stage2",
+        name: "My first Stage with P2P",
+        communication: "p2p",
+        type: "music",
+        actors: []
     });
 
     const handleConnection = (socket: SocketIO.Socket) => {
-        let room: Room | undefined;
-        let user: Member | undefined;
+        let stage: Stage | undefined;
+        let user: admin.auth.UserRecord | undefined;
+        let actor: Actor | undefined;
         console.log("New connection from " + socket.id);
 
-        const sendDirector = (director: Director) => {
-            socket.emit("director_added", {
-                id: director.id,
-                producers: Object.values(director.producers).map((producer: Producer) => ({
-                    id: producer.id
-                }))
-            });
-        };
-
-        const sendMember = (member: Member) => {
-            socket.emit("member_added", {
-                id: member.id,
-                producers: Object.values(member.producers).map((producer: Producer) => ({
-                    id: producer.id
-                }))
-            });
-        };
-
-        const onProducerAdded = (member: Member, producer: Producer) => {
-            socket.emit("producer_added", {
-                id: member.id,
-                producerId: producer.id
-            });
-        };
-
-
-        /*** JOIN ROOM (answer: rtp capabilities) ***/
-        socket.on("join-room", async (data: {
-            memberId: string;
-            roomName: string;
-            isDirector: boolean;
-        }, callback) => {
-            console.log(socket.id + ": join-room");
-            //TODO: If switching room, disconnect first
-            room = rooms.find((room: Room) => room.id === data.roomName);
-            if (room) {
-                user = {
-                    id: data.memberId,
-                    transports: {},
-                    consumers: {},
-                    producers: {}
-                };
-                if (data.isDirector) {
-                    //TODO: Handle if director is already present
-                    room.director = user;
-                } else {
-                    room.members.push(user);
-                }
-                callback(mediasoupRouter.rtpCapabilities);
-            } else {
-                callback(null);
-            }
+        socket.on("get-rtp-capabilities", async ({}, callback) => {
+            callback(mediasoupRouter.rtpCapabilities);
         });
 
         /*** CREATE SEND TRANSPORT ***/
         socket.on("create-send-transport", async (data: {}, callback) => {
             console.log(socket.id + ": create-send-transport");
-            if (!room || !user) {
+            if (!stage || !actor || !user) {
                 console.error("create-transport before successful join-room");
                 return;
             }
@@ -158,8 +118,7 @@ const main = async () => {
                 enableUdp: true,
                 enableTcp: true,
                 preferUdp: true,
-                initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
-                appData: {peerId: user.id, clientDirection: "send"}
+                initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate
             });
             if (config.mediasoup.webRtcTransport.maxIncomingBitrate) {
                 try {
@@ -167,7 +126,7 @@ const main = async () => {
                 } catch (error) {
                 }
             }
-            user.transports[transport.id] = transport;
+            actor.transports[transport.id] = transport;
             callback({
                 id: transport.id,
                 iceParameters: transport.iceParameters,
@@ -181,8 +140,8 @@ const main = async () => {
             rtpCapabilities: RtpCapabilities;
         }, callback) => {
             console.log(socket.id + ": create-receive-transport");
-            if (!room || !user) {
-                console.error("create-transport before successful join-room");
+            if (!stage || !user) {
+                console.error("create-transport before successful join-stage");
                 return;
             }
             const transport: WebRtcTransport = await mediasoupRouter.createWebRtcTransport({
@@ -190,10 +149,9 @@ const main = async () => {
                 enableUdp: true,
                 enableTcp: true,
                 preferUdp: true,
-                initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate,
-                appData: {peerId: user.id, clientDirection: "recv"}
+                initialAvailableOutgoingBitrate: config.mediasoup.webRtcTransport.initialAvailableOutgoingBitrate
             });
-            user.transports[transport.id] = transport;
+            actor.transports[transport.id] = transport;
             callback({
                 id: transport.id,
                 iceParameters: transport.iceParameters,
@@ -208,7 +166,7 @@ const main = async () => {
             dtlsParameters: DtlsParameters;
         }, callback) => {
             console.log(socket.id + ": connect-transport " + data.transportId);
-            const transport: WebRtcTransport = user.transports[data.transportId];
+            const transport: WebRtcTransport = actor.transports[data.transportId];
             if (!transport) {
                 callback({error: "Could not find transport " + data.transportId});
                 return;
@@ -225,7 +183,7 @@ const main = async () => {
             kind: MediaKind;
         }, callback) => {
             console.log(socket.id + ": send-track");
-            const transport: WebRtcTransport = user.transports[data.transportId];
+            const transport: WebRtcTransport = actor.transports[data.transportId];
             if (!transport) {
                 callback({error: "Could not find transport " + data.transportId});
                 return;
@@ -238,10 +196,10 @@ const main = async () => {
                 console.log("producer's transport closed", producer.id);
                 //closeProducer(producer);
             });
-            user.producers[producer.id] = producer;
+            actor.producers[producer.id] = producer;
             // Inform all about new producer
             socket.emit("producer-added", {
-                userId: user.id,
+                userId: actor.uid,
                 producerId: producer.id
             });
             callback({id: producer.id});
@@ -254,7 +212,7 @@ const main = async () => {
             rtpCapabilities: RtpCapabilities;
         }, callback) => {
             console.log(socket.id + ": consume");
-            const transport: WebRtcTransport = user.transports[data.transportId];
+            const transport: WebRtcTransport = actor.transports[data.transportId];
             if (!transport) {
                 callback({error: "Could not find transport " + data.transportId});
                 return;
@@ -264,7 +222,7 @@ const main = async () => {
                 rtpCapabilities: data.rtpCapabilities,
                 paused: true
             });
-            user.consumers[consumer.id] = consumer;
+            actor.consumers[consumer.id] = consumer;
             callback({
                 id: consumer.id,
                 producerId: consumer.producerId,
@@ -277,16 +235,143 @@ const main = async () => {
 
         /*** FINISH CONSUME (resume track after successful consume establishment) ***/
         socket.on("finish-consume", async (data: {
-            id: string;
+            uid: string;
+            consumerId: string;
         }, callback) => {
             console.log(socket.id + ": finished consume");
-            const consumer: Consumer = user.consumers[data.id];
+            const actor: Actor = stage.actors.find((actor: Actor) => actor.uid === data.uid);
+            if (!actor) {
+                callback({error: "actor not found"});
+            }
+            const consumer: Consumer = actor.consumers[data.consumerId];
             if (!consumer) {
                 callback({error: "consumer not found"});
             }
             consumer.resume().then(
                 () => callback()
             );
+        });
+
+        /*** Common ***/
+        socket.on('create-stage', (data: {
+            name: string;
+            communication: 'p2p' | 'server';
+            type: 'theater' | 'music' | 'conference';
+            token: string;
+        }, callback) => {
+            admin.auth().verifyIdToken(data.token)
+                .then((decodedIdToken: admin.auth.DecodedIdToken) => {
+                    admin.auth().getUser(decodedIdToken.uid)
+                        .then((userRecord: admin.auth.UserRecord) => {
+                            user = userRecord;
+                            actor = {
+                                uid: userRecord.uid,
+                                name: userRecord.displayName,
+                                role: "director",
+                                transports: {},
+                                consumers: {},
+                                producers: {}
+                            };
+                            const stage: Stage = {
+                                id: uuidv4(),
+                                name: data.name,
+                                actors: [actor],
+                                type: data.type,
+                                communication: data.communication
+                            };
+                            stages.push(stage);
+                            console.log(actor.name + " created a new stage: " + stage.name);
+                            callback({
+                                id: stage.id,
+                                name: stage.name,
+                                communication: stage.communication,
+                                type: stage.type
+                            });
+                        })
+                })
+                .catch((error) => callback({error: error}));
+        });
+        socket.on('join-stage', async (data: {
+            stageId: string;
+            token: string;
+        }, callback) => {
+            stage = stages.find((stage: Stage) => stage.id === data.stageId);
+            if (!stage)
+                return callback({error: "Could not find stage with id " + data.stageId});
+            return admin.auth().verifyIdToken(data.token)
+                .then((decodedIdToken: admin.auth.DecodedIdToken) => {
+                    admin.auth().getUser(decodedIdToken.uid)
+                        .then((userRecord: admin.auth.UserRecord) => {
+                            actor = {
+                                uid: userRecord.uid,
+                                name: userRecord.displayName,
+                                role: "actor",
+                                transports: {},
+                                consumers: {},
+                                producers: {}
+                            };
+                            user = userRecord;
+                            stage.actors.push(actor);
+                            console.log(actor.name + " entered the stage");
+                            socket.broadcast.emit("participant-added", {
+                                uid: actor.uid,
+                                socketId: socket.id,
+                                role: actor.role,
+                                name: actor.name
+                            });
+                            return callback({
+                                id: stage.id,
+                                name: stage.name,
+                                communication: stage.communication,
+                                type: stage.type
+                            });
+                        })
+                })
+                .catch((error) => callback({error: error}));
+        });
+
+
+        /*** P2P Signaling ***/
+        /*socket.broadcast.emit('participants-added', {
+            users: [socket.id]
+        });*/
+
+        socket.on('disconnect', () => {
+            console.log(actor ? actor.name : socket.id + " left the stage");
+            if (stage)
+                stage.actors = stage.actors.filter((actor: Actor) => actor.uid !== user.uid);
+            socket.emit('participant-removed', socket.id);
+        });
+
+        socket.on('make-offer', (data: {
+            offer: any;
+            toSocketId: string;
+        }) => {
+            if (!actor) {
+                console.error("No actor available");
+                return;
+            }
+            socket.to(data.toSocketId).emit('offer-made', {
+                uid: actor.uid,
+                socketId: socket.id,
+                role: actor.role,
+                name: actor.name,
+                offer: data.offer
+            });
+        });
+
+        socket.on('make-answer', (data) => {
+            socket.to(data.to).emit('answer-made', {
+                socketId: socket.id,
+                answer: data.answer
+            });
+        });
+
+        socket.on('send-candidate', (data) => {
+            socket.to(data.to).emit('candidate-sent', {
+                socketId: socket.id,
+                candidate: data.candidate
+            });
         });
     };
 

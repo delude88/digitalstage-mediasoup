@@ -1,4 +1,5 @@
-import {Member} from "./Member";
+import Participant from "./Participant";
 
-export interface Director extends Member {
+export default interface Director extends Participant {
+
 }

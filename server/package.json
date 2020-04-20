@@ -15,13 +15,14 @@
   "license": "MIT",
   "dependencies": {
     "body-parser": "^1.19.0",
+    "cors": "latest",
     "express": "^4.17.1",
     "firebase-admin": "^8.10.0",
+    "ip": "latest",
     "mediasoup": "^3.5.7",
     "socket.io": "latest",
-    "cors": "latest",
-    "timesync": "latest",
-    "ip": "latest"
+    "timesync": "^1.0.5",
+    "uuid": "^7.0.3"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.0",

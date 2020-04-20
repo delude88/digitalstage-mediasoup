@@ -110,7 +110,7 @@ export default (host: string, port: number) => {
                 role: 'actor' | 'director';
                 name: string;
             }) => {
-                console.log("participant-added");
+                console.log("participant-added " + data.uid);
                 const actor: Actor = {
                     uid: data.uid,
                     socketId: data.socketId,
@@ -206,7 +206,7 @@ export default (host: string, port: number) => {
                     uid: string,
                     producerId: string
                 }) => {
-                    console.log("new producer" + data.producerId);
+                    console.log("new producer" + data.producerId + " by " + data.uid);
 
                     const actor: Actor = actors.find((actor: Actor) => actor.uid === data.uid);
                     if (actor) {
@@ -352,6 +352,38 @@ export default (host: string, port: number) => {
             }
         });
         setReceiveTransport(receiveTransport);
+
+        socket.request("get-actors", {})
+            .then((blob) => {
+                console.log(blob);
+                const actors: Actor[] = blob.actors.map((data) => ({
+                    uid: data.uid,
+                    name: data.name,
+                    role: data.role,
+                    scoketId: data.socketId,
+                    _mediasoup: data._mediasoup.producerIds ? {
+                        producerIds: data._mediasoup.producerIds,
+                        consumers: []
+                    } : undefined
+                }));
+                return actors.forEach((actor: Actor) => {
+                    if (actor._mediasoup) {
+                        return actor._mediasoup.producerIds.forEach(async (producerId: string) => {
+                            const consumerOptions = await socket.request('consume', {
+                                uid: actor.uid,
+                                producerId: producerId,
+                                transportId: receiveTransport.id,
+                                rtpCapabilities: localDevice.rtpCapabilities
+                            });
+                            const consumer: mediasoup.types.Consumer = await receiveTransport.consume(consumerOptions);
+                            await socket.request('finish-consume', {
+                                consumerId: consumerOptions.id
+                            });
+                            consumer.resume();
+                        });
+                    }
+                });
+            })
     }, [socket]);
 
     const streamTrack = useCallback((track: MediaStreamTrack) => {

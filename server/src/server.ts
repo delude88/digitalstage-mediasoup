@@ -31,6 +31,7 @@ interface Actor {
     uid: string;
     name: string;
     role: "actor" | "director";
+    socketId: string;
     transports: {
         [id: string]: WebRtcTransport;
     };
@@ -198,8 +199,8 @@ const main = async () => {
             });
             actor.producers[producer.id] = producer;
             // Inform all about new producer
-            socket.emit("producer-added", {
-                userId: actor.uid,
+            socket.broadcast.emit("producer-added", {
+                uid: actor.uid,
                 producerId: producer.id
             });
             callback({id: producer.id});
@@ -241,11 +242,11 @@ const main = async () => {
             console.log(socket.id + ": finished consume");
             const actor: Actor = stage.actors.find((actor: Actor) => actor.uid === data.uid);
             if (!actor) {
-                callback({error: "actor not found"});
+                return callback({error: "actor not found"});
             }
             const consumer: Consumer = actor.consumers[data.consumerId];
             if (!consumer) {
-                callback({error: "consumer not found"});
+                return callback({error: "consumer not found"});
             }
             consumer.resume().then(
                 () => callback()
@@ -267,6 +268,7 @@ const main = async () => {
                             actor = {
                                 uid: userRecord.uid,
                                 name: userRecord.displayName,
+                                socketId: socket.id,
                                 role: "director",
                                 transports: {},
                                 consumers: {},
@@ -306,6 +308,7 @@ const main = async () => {
                                 uid: userRecord.uid,
                                 name: userRecord.displayName,
                                 role: "actor",
+                                socketId: socket.id,
                                 transports: {},
                                 consumers: {},
                                 producers: {}
@@ -328,6 +331,21 @@ const main = async () => {
                         })
                 })
                 .catch((error) => callback({error: error}));
+        });
+        socket.on('get-actors', (data: {}, callback) => {
+            if (!stage)
+                return callback({error: "Join first"});
+            return callback({
+                actors: stage.actors.map((actor: Actor) => ({
+                    uid: actor.uid,
+                    name: actor.name,
+                    role: actor.role,
+                    socketId: actor.socketId,
+                    _mediasoup: actor.producers ? {
+                        producerIds: Object.values(actor.producers).map((producer: Producer) => producer.id)
+                    } : undefined
+                }))
+            });
         });
 
 

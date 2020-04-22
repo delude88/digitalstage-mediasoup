@@ -44,6 +44,7 @@ export interface SoundjackEventHandler {
     onStreamChanged?: (id: string, stream: Stream) => void;
     onSettingsUpdated?: (settings: SoundjackSettings) => void;
     onSoundLevelChanged?: (soundLevel: number) => void;
+    onConnectionInfoUpdated?: (connection: ConnectionInfo) => void;
 }
 
 export default class Soundjack {
@@ -230,6 +231,7 @@ export default class Soundjack {
                     };
                     break;
                 case 'streamIsHere':
+                    //TODO: Handle remote streams (!)
                     if (message.ID !== "X") {
                         let stream: Stream = this.streams[message.ID];
                         if (!stream) {
@@ -265,6 +267,7 @@ export default class Soundjack {
                     break;
                 case 'streamIsGone':
                     const handleStreamIsGone = () => {
+                        //TODO: Handle remote streams (!)
                         const stream: Stream = this.streams[message.data1];
                         if (stream) {
                             this.streams = omit(this.streams, message.data1);
@@ -303,6 +306,7 @@ export default class Soundjack {
                         localIP2: message.localIP2,
                         localBindPort: message.localBindPort,
                     } as ConnectionInfo;
+                    this.eventHandler.forEach((eventHandler: SoundjackEventHandler) => eventHandler.onConnectionInfoUpdated && eventHandler.onConnectionInfoUpdated(this.connectionInfo));
                     break;
                 case 'tellDropout':
                     break;

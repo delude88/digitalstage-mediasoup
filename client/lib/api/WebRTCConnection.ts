@@ -6,6 +6,9 @@ export interface PeerConnection {
     rtcpPeerConnection: RTCPeerConnection | null;
     established: boolean;
     tracks: MediaStreamTrack[];
+    senders: {
+        [trackId: string]: RTCRtpSender
+    }
 }
 
 export default class WebRTCConnection {
@@ -14,6 +17,9 @@ export default class WebRTCConnection {
     private peerConnections: {
         [socketId: string]: PeerConnection
     } = {};
+    private tracks: {
+        [id: string]: MediaStreamTrack
+    };
 
     constructor(socket: SocketWithRequest, uid: string) {
         this.socket = socket;
@@ -23,6 +29,28 @@ export default class WebRTCConnection {
         }
         this.initializeSocketHandler();
     }
+
+    public publishTrack = (track: MediaStreamTrack) => {
+        Object.keys(this.peerConnections)
+            .forEach((socketId: string) => {
+                //TODO: Discuss, if we need to wait for the connection to be established
+                this.peerConnections[socketId].senders[track.id] = this.peerConnections[socketId].rtcpPeerConnection.addTrack(track);
+            });
+        this.tracks[track.id] = track;
+    };
+
+    public unpublishTrack = (track: MediaStreamTrack) => {
+        //TODO: Discuss, if this is all we need to do here
+        Object.keys(this.peerConnections)
+            .forEach((socketId: string) => {
+                const sender: RTCRtpSender = this.peerConnections[socketId].senders[track.id];
+                if (sender) {
+                    this.peerConnections[socketId].rtcpPeerConnection.removeTrack(sender);
+                }
+
+            });
+        delete this.tracks[track.id];
+    };
 
     public disconnect = () => {
         Object.keys(this.peerConnections).forEach((socketId: string) => {
@@ -124,7 +152,8 @@ export default class WebRTCConnection {
             uid: uid,
             rtcpPeerConnection: new RTCPeerConnection(p2pConfiguration),
             established: false,
-            tracks: []
+            tracks: [],
+            senders: {}
         };
         this.peerConnections[socketId].rtcpPeerConnection.onicecandidateerror = (error) => {
             console.log('failed to add ICE Candidate');

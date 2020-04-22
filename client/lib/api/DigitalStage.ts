@@ -1,6 +1,6 @@
 import {extend, SocketWithRequest} from "./SocketWithRequest";
 import SocketIOClient from "socket.io-client";
-import Soundjack from "./Soundjack";
+import Soundjack, {ConnectionInfo} from "./Soundjack";
 import firebase from "firebase/app";
 import "firebase/auth";
 import WebRTCConnection from "./WebRTCConnection";
@@ -17,12 +17,23 @@ export interface Stage {
     type: 'theater' | 'music' | 'conference'
 }
 
+export interface Participant {
+    soundjack?: {
+        ip: string;
+        port: number;
+        active: boolean;
+    }
+}
+
 export default class DigitalStage {
     private socket: SocketWithRequest | null = null;
     private eventHandler: EventHandler[] = [];
     private soundjack: Soundjack = new Soundjack();
     private webRTCConnection: WebRTCConnection | null = null;
     private mediasoupConnection: MediasoupConnection | null = null;
+    private participants: {
+        [uid: string]: Participant
+    } = {};
     private stage: Stage | null = null;
 
     constructor() {
@@ -38,7 +49,6 @@ export default class DigitalStage {
     }): Promise<boolean> => {
         return new Promise<boolean>(resolve => {
             this.socket = extend(SocketIOClient(options.hostname + ":" + options.port));
-            this.attachSocketHandler();
             return true;
         });
     };
@@ -46,12 +56,16 @@ export default class DigitalStage {
     public disconnect = () => {
         if (this.soundjack)
             this.soundjack.disconnect();
+        this.soundjack = null;
         if (this.mediasoupConnection)
             this.mediasoupConnection.disconnect();
+        this.mediasoupConnection = null;
         if (this.webRTCConnection)
             this.webRTCConnection.disconnect();
+        this.webRTCConnection = null;
         if (this.socket)
             this.socket.close();
+        this.socket = null;
     };
 
     public createStage = (user: firebase.User, stageName: string, type: 'theater' | 'music' | 'conference' = 'theater'): Promise<Stage> => {
@@ -65,12 +79,12 @@ export default class DigitalStage {
                 })
                     .then((response: string | { error: string }): Stage => {
                         if (typeof response === "string") {
-                            const stage: Stage = {
+                            this.stage = {
                                 id: response,
                                 name: stageName,
                                 type: type
                             };
-                            this.stage = stage;
+                            this.attachSocketHandler(user.uid);
                             return this.stage;
                         } else {
                             if (typeof response === "object" && response.error) {
@@ -99,6 +113,7 @@ export default class DigitalStage {
                     } | any): Stage => {
                         if (response.stage) {
                             this.stage = response.stage as Stage;
+                            this.attachSocketHandler(user.uid);
                             return this.stage;
                         } else {
                             if (response.error) {
@@ -118,28 +133,46 @@ export default class DigitalStage {
         return this.soundjack;
     };
 
-    public publishTrack = (track: MediaStreamTrack, communication: "mediasoup" | "p2p") => {
-        if (communication === "mediasoup") {
-            this.socket.request("publish-track", {}).then(
-                (response: any) => {
-
-                }
-            )
-        } else {
-
-        }
+    public publishTrack = (track: MediaStreamTrack, communication: "mediasoup" | "p2p"): Promise<void> => {
+        return new Promise<void>(() => {
+            if (communication === "mediasoup") {
+                return this.mediasoupConnection.publishTrack(track);
+            } else {
+                this.webRTCConnection.publishTrack(track);
+                return;
+            }
+        });
     };
 
     public publishSoundjack = () => {
         //TODO: Send to all participants the soundjack stream
+        Object.keys(this.participants)
+            .forEach((uid: string) => {
+                const participant: Participant = this.participants[uid];
+                if (participant.soundjack) {
+                    this.soundjack.startStream(participant.soundjack.ip, participant.soundjack.port);
+                    participant.soundjack.active = true;
+                }
+            });
     };
 
     public unpublishSoundjack = () => {
         //TODO: Stop streaming the soundjack stream to all participants
+        Object.keys(this.participants)
+            .forEach((uid: string) => {
+                const participant: Participant = this.participants[uid];
+                if (participant.soundjack && participant.soundjack.active) {
+                    this.soundjack.startStream(participant.soundjack.ip, participant.soundjack.port);
+                }
+            });
     };
 
-    public unpublishTrack = (track: MediaStreamTrack) => {
-
+    public unpublishTrack = (track: MediaStreamTrack, communication: "mediasoup" | "p2p") => {
+        if (communication === "mediasoup") {
+            this.mediasoupConnection.unpublishTrack(track);
+        } else {
+            this.webRTCConnection.unpublishTrack(track);
+        }
     };
 
     public addEventHandler = (eventHandler: EventHandler) => {
@@ -150,6 +183,66 @@ export default class DigitalStage {
         this.eventHandler = this.eventHandler.filter((e: EventHandler) => e !== eventHandler);
     };
 
-    private attachSocketHandler = () => {
+    private attachSocketHandler = (uid: string) => {
+        // Create listener
+        this.mediasoupConnection = new MediasoupConnection(this.socket);
+        this.webRTCConnection = new WebRTCConnection(this.socket, uid);
+
+        this.mediasoupConnection.addEventHandler({
+            onConnected: () => {
+
+            },
+            onDisconnected: () => {
+
+            },
+            onConsumerAdded: () => {
+
+            },
+            onConsumerRemoved: () => {
+
+            }
+        });
+
+        this.soundjack.addEventHandler({
+            onConnected: () => {
+
+            },
+            onConnectionInfoUpdated: (connectionInfo: ConnectionInfo) => {
+                this.publishSoundjackConnectionInfos(connectionInfo);
+            },
+            onDisconnected: () => {
+
+            },
+            onStreamAdded: () => {
+
+            },
+            onStreamChanged: () => {
+
+            },
+            onStreamRemoved: () => {
+
+            },
+            onAudioDeviceAdded: () => {
+
+            },
+            onAudioDeviceRemoved: () => {
+
+            },
+            onSoundLevelChanged: () => {
+
+            },
+            onSettingsUpdated: () => {
+
+            }
+        });
+
+        //TODO: Event handler for webrtc
+    };
+
+    private publishSoundjackConnectionInfos = (connectionInfo: ConnectionInfo) => {
+        this.socket.emit("sj-send-ip", {
+            ip: connectionInfo.interfaceIP,
+            port: connectionInfo.localBindPort
+        })
     };
 }

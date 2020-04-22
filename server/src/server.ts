@@ -48,6 +48,27 @@ const initializeSocketCommunication = async () => {
     const SocketHandler = (socket: SocketIO.Socket) => {
         console.log("Got new socket connection " + socket.id + " from " + socket.handshake.address);
 
+        const joinRoomAndInitializeAllServices = (stageId: string, uid: string,) => {
+            socket.join(stageId);
+            // Add socket event handler for webrtc (p2p-*), mediasoup (ms-*) and soundjack (sj-*)
+            webRTCHandler.initializeSingleSocket(socket, stageId, uid);
+            mediasoupHandler.initializeSingleSocket(socket, stageId, uid);
+            socket.on("sj-send-ip", (data: {
+                ip: string;
+                port: number;
+            }) => {
+                socket.emit("sj-ip-sent", {
+                    uid: uid,
+                    ip: data.ip,
+                    port: data.port
+                });
+            });
+            socket.broadcast.to(stageId).emit("p2p-peer-added", {
+                uid: uid,
+                socketId: socket.id
+            });
+        };
+
         socket.on("create-stage", (data: {
             token: string;
             stageName: string;
@@ -64,9 +85,7 @@ const initializeSocketCommunication = async () => {
                             directorUid: decodedIdToken.uid
                         }).then(
                             (docRef: admin.firestore.DocumentReference) => {
-                                socket.join(docRef.id);
-                                webRTCHandler.initializeSingleSocket(socket, docRef.id, decodedIdToken.uid);
-                                mediasoupHandler.initializeSingleSocket(socket, docRef.id, decodedIdToken.uid);
+                                joinRoomAndInitializeAllServices(docRef.id, decodedIdToken.uid);
                                 callback(docRef.id);
                             }
                         );
@@ -86,9 +105,7 @@ const initializeSocketCommunication = async () => {
                             .then((doc: admin.firestore.DocumentSnapshot) => {
                                 if (doc.exists) {
                                     const docData = doc.data();
-                                    socket.join(data.stageId);
-                                    webRTCHandler.initializeSingleSocket(socket, data.stageId, decodedIdToken.uid);
-                                    mediasoupHandler.initializeSingleSocket(socket, data.stageId, decodedIdToken.uid);
+                                    joinRoomAndInitializeAllServices(data.stageId, decodedIdToken.uid);
                                     callback({
                                         stage: {
                                             ...docData,

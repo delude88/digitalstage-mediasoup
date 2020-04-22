@@ -6,14 +6,12 @@ import {FormControl} from "baseui/form-control";
 import {Slider} from "baseui/slider";
 
 export default () => {
-    const {connect, available, ready, connected, audioDevices, settings, startStream, stopStream, streams, setFrameSize, setBufferSize, setOutputDevice, setInputDevice} = useSoundjack();
+    const {available, ready, connected, audioDevices, settings, startStream, stopStream, streams, setFrameSize, setBufferSize, setOutputDevice, setInputDevice} = useSoundjack();
 
     if (!connected) {
         return (
             <div>
-                <Button disabled={!ready || !available} isLoading={!ready} onClick={() => {
-                    connect();
-                }}>Enable</Button>
+                <Button disabled={!ready || !available} isLoading={!ready} >Enable</Button>
             </div>
         );
     }

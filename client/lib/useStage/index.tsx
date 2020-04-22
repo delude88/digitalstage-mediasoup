@@ -2,7 +2,7 @@ import {useCallback, useEffect, useState} from "react";
 import * as mediasoup from "mediasoup-client";
 import firebase from "firebase/app";
 import "firebase/auth";
-import {extend, SocketWithRequest} from "../socket.io-promise";
+import {extend, SocketWithRequest} from "../api/SocketWithRequest";
 import SocketIOClient from "socket.io-client";
 import {p2pConfiguration} from "./config";
 import {RtpCapabilities} from "mediasoup-client/src/RtpParameters";

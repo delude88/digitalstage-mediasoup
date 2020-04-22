@@ -1,9 +1,9 @@
 import {Component} from "react";
 import * as mediasoup from 'mediasoup-client';
 import SocketIOClient from "socket.io-client";
-import {extend, SocketWithRequest} from "../lib/socket.io-promise";
+import {extend, SocketWithRequest} from "../lib/api/SocketWithRequest";
 import {Button} from "baseui/button";
-import {fixWebRTC} from "../lib/fixWebRTC";
+import {fixWebRTC} from "../lib/api/fixWebRTC";
 import {Transport} from "mediasoup-client/lib/Transport";
 import VideoPlayer from "../components/VideoPlayer";
 import VideoTrackPlayer from "../components/VideoTrackPlayer";

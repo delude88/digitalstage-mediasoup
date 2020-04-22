@@ -237,11 +237,6 @@ export default (host: string = "127.0.0.1", port: number = 1234) => {
         }
     }, [connected, socket, settings]);
 
-
-    const connect = useCallback(() => {
-
-    }, [socket]);
-
     const disconnect = useCallback(() => {
         debouncedSendSettings.cancel();
         Object.keys(streams).forEach((id: string) => {
@@ -283,7 +278,6 @@ export default (host: string = "127.0.0.1", port: number = 1234) => {
     }, [socket, streams]);
 
     return {
-        connect,
         setInputDevice: (id: number) => setSettings(prevState => ({
             ...prevState,
             inputAudioDevice: id

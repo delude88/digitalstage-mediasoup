@@ -1,11 +1,3 @@
-export const request = (socket: SocketIOClient.Socket) => {
-    return (type: string, data: any = {}): Promise<any> => {
-        return new Promise(resolve => {
-            socket.emit(type, data, resolve)
-        });
-    }
-};
-
 export interface SocketWithRequest extends SocketIOClient.Socket {
     request: (type: string, data?: any) => Promise<any>
 }

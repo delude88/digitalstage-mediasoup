@@ -6,7 +6,7 @@ import Layout from "../../components/ui/Layout";
 import {useAuth} from "../../lib/useAuth";
 import LoginForm from "../../components/LoginForm";
 import Loading from "../../components/ui/Loading";
-import {fixWebRTC} from "../../lib/fixWebRTC";
+import {fixWebRTC} from "../../lib/api/fixWebRTC";
 import useStage from "../../lib/useStage";
 import * as config from "../../env";
 import {Checkbox} from "baseui/checkbox";

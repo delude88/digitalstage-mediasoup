@@ -1,9 +1,9 @@
 import {useCallback, useEffect, useState} from "react";
 import * as mediasoup from 'mediasoup-client';
-import {extend, SocketWithRequest} from "./api/SocketWithRequest";
+import {extend, SocketWithRequest} from "../api/SocketWithRequest";
 import SocketIOClient from "socket.io-client";
 import {Transport} from "mediasoup-client/lib/Transport";
-import * as config from "./../env";
+import * as config from "../../env";
 
 interface RemoteMember {
     id: string;

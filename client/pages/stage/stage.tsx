@@ -9,9 +9,9 @@ import {fixWebRTC} from "../../lib/api/fixWebRTC";
 import VideoTrackPlayer from "../../components/VideoTrackPlayer";
 import * as config from "../../env";
 import AudioQualitySettings from "../../models/AudioQualitySettings";
-import useStage from '../../lib/useStage';
+import useStage from '../../lib/deprecated/useStage';
 import {useAuth} from "../../lib/useAuth";
-import Actor from "../../lib/useStage/types/Actor";
+import Actor from "../../lib/deprecated/useStage/types/Actor";
 import Loading from "../../components/ui/Loading";
 
 const HighAudioQualitySettings: AudioQualitySettings = {

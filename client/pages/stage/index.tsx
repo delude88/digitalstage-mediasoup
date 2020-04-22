@@ -7,12 +7,12 @@ import {useAuth} from "../../lib/useAuth";
 import LoginForm from "../../components/LoginForm";
 import Loading from "../../components/ui/Loading";
 import {fixWebRTC} from "../../lib/api/fixWebRTC";
-import useStage from "../../lib/useStage";
+import useStage from "../../lib/deprecated/useStage";
 import * as config from "../../env";
 import {Checkbox} from "baseui/checkbox";
 import AudioQualitySettings from "../../models/AudioQualitySettings";
 import VideoPlayer from "../../components/VideoPlayer";
-import Actor from "../../lib/useStage/types/Actor";
+import Actor from "../../lib/deprecated/useStage/types/Actor";
 import VideoTrackPlayer from "../../components/VideoTrackPlayer";
 
 const HighAudioQualitySettings: AudioQualitySettings = {

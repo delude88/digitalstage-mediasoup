@@ -1,4 +1,4 @@
-import useSoundjack from "../../lib/useSoundjack";
+import useSoundjack from "../../lib/deprecated/useSoundjack";
 import React from "react";
 import {Button} from "baseui/button";
 import AudioDeviceSelector from "../../components/soundjack/AudioDeviceSelector";

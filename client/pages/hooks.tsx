@@ -1,4 +1,4 @@
-import useMediasoup from "../lib/useMediasoup";
+import useMediasoup from "../lib/deprecated/useMediasoup";
 import * as mediasoup from 'mediasoup-client';
 import {Button} from "baseui/button";
 import React, {useCallback, useEffect, useState} from "react";

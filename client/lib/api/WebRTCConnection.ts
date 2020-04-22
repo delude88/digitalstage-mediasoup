@@ -1,5 +1,5 @@
 import {SocketWithRequest} from "./SocketWithRequest";
-import {p2pConfiguration} from "../useStage/config";
+import {p2pConfiguration} from "../deprecated/useStage/config";
 
 export interface PeerConnection {
     uid: string;

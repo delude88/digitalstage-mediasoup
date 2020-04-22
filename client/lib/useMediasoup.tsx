@@ -67,7 +67,7 @@ const useMediasoup = () => {
         const socket: SocketWithRequest = extend(SocketIOClient(config.SERVER_URL + ":" + config.SERVER_PORT));
 
         console.log("connect 1: join room");
-        const routerRtpCapabilities = await socket.request('join-room', {
+        const routerRtpCapabilities = await socket.request('ms-join-room', {
             memberId: userId,
             roomName: roomName,
             isDirector: isDirector
@@ -81,7 +81,7 @@ const useMediasoup = () => {
 
         /** CONNECT 2: Create send transport **/
         console.log("connect 2: create send transport");
-        const sendTransportOptions = await socket.request('create-send-transport', {
+        const sendTransportOptions = await socket.request('ms-create-send-transport', {
             forceTcp: false,
             rtpCapabilities: device.rtpCapabilities,
         });
@@ -91,7 +91,7 @@ const useMediasoup = () => {
         const sendTransport: Transport = device.createSendTransport(sendTransportOptions);
         sendTransport.on('connect', async ({dtlsParameters}, callback, errCallback) => {
             console.log("sendTransport: connect");
-            socket.request('connect-transport', {
+            socket.request('ms-connect-transport', {
                 transportId: sendTransportOptions.id,
                 dtlsParameters
             })
@@ -100,7 +100,7 @@ const useMediasoup = () => {
         });
         sendTransport.on('produce', async ({kind, rtpParameters, appData}, callback) => {
             console.log("sendTransport: produce");
-            const result = await socket.request('send-track', {
+            const result = await socket.request('ms-send-track', {
                 transportId: sendTransportOptions.id,
                 kind,
                 rtpParameters,
@@ -131,7 +131,7 @@ const useMediasoup = () => {
         const receiveTransport: Transport = device.createRecvTransport(receiveTransportOptions);
         receiveTransport.on('connect', async ({dtlsParameters}, callback, errCallback) => {
             console.log("receiveTransport: connect");
-            await socket.request('connect-transport', {
+            await socket.request('ms-connect-transport', {
                 transportId: receiveTransportOptions.id,
                 dtlsParameters
             })
@@ -148,7 +148,7 @@ const useMediasoup = () => {
 
 
         // Handle incoming consume reports
-        socket.on('producer-added', async (data: {
+        socket.on('ms-producer-added', async (data: {
             userId: string,
             producerId: string
         }) => {
@@ -160,7 +160,7 @@ const useMediasoup = () => {
                 rtpCapabilities: device.rtpCapabilities
             });
             const consumer: mediasoup.types.Consumer = await receiveTransport.consume(consumerOptions);
-            await socket.request('finish-consume', {
+            await socket.request('ms-finish-consume', {
                 id: consumerOptions.id
             });
             consumer.resume();

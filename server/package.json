@@ -4,7 +4,7 @@
   "description": "Mediasoup server",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "NODE_ENV=development nodemon --watch './src/**/*.ts' --exec 'ts-node' src/deprecated/oldserver.ts",
+    "dev": "NODE_ENV=development nodemon --watch './src/**/*.ts' --exec 'ts-node' src/server.ts",
     "build": "NODE_ENV=production npm run build-ts && npm run lint",
     "lint": "tsc --noEmit && eslint \"**/*.{js,ts}\" --quiet --fix",
     "build-ts": "NODE_ENV=production tsc",

@@ -41,7 +41,6 @@ export default (host: string, port: number) => {
                 console.log("create-stage");
                 return socket.request("create-stage", {
                     name,
-                    communication,
                     type,
                     token
                 })
@@ -76,8 +75,10 @@ export default (host: string, port: number) => {
                 })
                     .then((response): Stage => {
                         if (response.error) {
+                            console.error(response.error);
                             throw new Error(response.error);
                         }
+                        console.log("got stage");
                         const stage: Stage = {
                             ...response
                         };

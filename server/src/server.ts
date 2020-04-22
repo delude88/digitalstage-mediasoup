@@ -38,6 +38,7 @@ const webServer: Server = https.createServer({
     rejectUnauthorized: false
 }, app);
 
+const socketServer: SocketIO.Server = SocketIO(webServer);
 const initializeSocketCommunication = async () => {
     const mediasoupHandler: MediasoupHandler = new MediasoupHandler();
     await mediasoupHandler.initialize();
@@ -45,11 +46,14 @@ const initializeSocketCommunication = async () => {
     await webRTCHandler.initialize();
 
     const SocketHandler = (socket: SocketIO.Socket) => {
+        console.log("Got new socket connection " + socket.id + " from " + socket.handshake.address);
+
         socket.on("create-stage", (data: {
             token: string;
             stageName: string;
             type: "theater" | "music" | "conference";
         }, callback) => {
+            console.log("create-stage(" + data.token + ", " + data.stageName + ", " + data.type + ")");
             admin.auth().verifyIdToken(data.token)
                 .then(
                     (decodedIdToken: admin.auth.DecodedIdToken) => {
@@ -73,6 +77,7 @@ const initializeSocketCommunication = async () => {
             token: string;
             stageId: string;
         }, callback) => {
+            console.log("join-stage(" + data.token + ", " + data.stageId + ")");
             admin.auth().verifyIdToken(data.token)
                 .then(
                     (decodedIdToken: admin.auth.DecodedIdToken) => {
@@ -97,11 +102,11 @@ const initializeSocketCommunication = async () => {
                     });
         });
     };
-    const socketServer: SocketIO.Server = SocketIO(webServer);
-    socketServer.origins("*:*");
-    socketServer.use(SocketHandler);
-};
 
+    socketServer.origins("*:*");
+    //socketServer.use(SocketHandler);
+    socketServer.on("connection", SocketHandler);
+};
 
 webServer.listen(config.listenPort, () => {
     console.log("Running digital stage on port " + config.listenPort + " ...");

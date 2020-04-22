@@ -13,7 +13,7 @@ import MediasoupHandler from "./api/mediasoup";
 const config = require("./config");
 
 // Initialize firebase
-const serviceAccount = require("./firebase-adminsdk.json");
+const serviceAccount = require("../firebase-adminsdk.json");
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://digitalstage-wirvsvirus.firebaseio.com"

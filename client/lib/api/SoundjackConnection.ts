@@ -47,7 +47,7 @@ export interface SoundjackEventHandler {
     onConnectionInfoUpdated?: (connection: ConnectionInfo) => void;
 }
 
-export default class Soundjack {
+export default class SoundjackConnection {
     private eventHandler: SoundjackEventHandler[] = [];
     private websocket: WebSocket | null = null;
     private version: string | null = null;

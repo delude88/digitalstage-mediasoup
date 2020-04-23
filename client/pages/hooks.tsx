@@ -7,7 +7,7 @@ import {Input} from "baseui/input";
 import {Checkbox} from "baseui/checkbox";
 import VideoPlayer from "../components/VideoPlayer";
 import Container from "../components/ui/Container";
-import {fixWebRTC} from "../lib/api/fixWebRTC";
+import {fixWebRTC} from "../lib/api/utils/fixWebRTC";
 import VideoTrackPlayer from "../components/VideoTrackPlayer";
 import * as config from "./../env";
 import AudioQualitySettings from "../models/AudioQualitySettings";

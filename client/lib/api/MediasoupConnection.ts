@@ -1,4 +1,4 @@
-import {SocketWithRequest} from "./SocketWithRequest";
+import {SocketWithRequest} from "./utils/SocketWithRequest";
 import * as mediasoup from 'mediasoup-client';
 
 export interface MediasoupEventHandler {

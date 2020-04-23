@@ -1,4 +1,4 @@
-import {SocketWithRequest} from "./SocketWithRequest";
+import {SocketWithRequest} from "./utils/SocketWithRequest";
 import {p2pConfiguration} from "../deprecated/useStage/config";
 
 export interface PeerConnection {

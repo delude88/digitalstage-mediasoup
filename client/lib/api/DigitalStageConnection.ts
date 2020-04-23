@@ -1,6 +1,6 @@
-import {extend, SocketWithRequest} from "./SocketWithRequest";
+import {extend, SocketWithRequest} from "./utils/SocketWithRequest";
 import SocketIOClient from "socket.io-client";
-import Soundjack, {ConnectionInfo} from "./Soundjack";
+import SoundjackConnection, {ConnectionInfo} from "./SoundjackConnection";
 import firebase from "firebase/app";
 import "firebase/auth";
 import WebRTCConnection from "./WebRTCConnection";
@@ -25,10 +25,10 @@ export interface Participant {
     }
 }
 
-export default class DigitalStage {
+export default class DigitalStageConnection {
     private socket: SocketWithRequest | null = null;
     private eventHandler: EventHandler[] = [];
-    private soundjack: Soundjack = new Soundjack();
+    private soundjack: SoundjackConnection = new SoundjackConnection();
     private webRTCConnection: WebRTCConnection | null = null;
     private mediasoupConnection: MediasoupConnection | null = null;
     private participants: {
@@ -129,7 +129,7 @@ export default class DigitalStage {
         this.soundjack.connect(ip, port);
     };
 
-    public getSoundjack = (): Soundjack | null => {
+    public getSoundjack = (): SoundjackConnection | null => {
         return this.soundjack;
     };
 

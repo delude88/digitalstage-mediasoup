@@ -6,14 +6,14 @@ import Layout from "../../components/ui/Layout";
 import {useAuth} from "../../lib/useAuth";
 import LoginForm from "../../components/LoginForm";
 import Loading from "../../components/ui/Loading";
-import {fixWebRTC} from "../../lib/api/fixWebRTC";
-import useStage from "../../lib/deprecated/useStage";
+import {fixWebRTC} from "../../lib/api/utils/fixWebRTC";
 import * as config from "../../env";
 import {Checkbox} from "baseui/checkbox";
 import AudioQualitySettings from "../../models/AudioQualitySettings";
 import VideoPlayer from "../../components/VideoPlayer";
 import Actor from "../../lib/deprecated/useStage/types/Actor";
 import VideoTrackPlayer from "../../components/VideoTrackPlayer";
+import useStage from "../../lib/useStage";
 
 const HighAudioQualitySettings: AudioQualitySettings = {
     autoGainControl: false,
@@ -31,32 +31,15 @@ export default () => {
     const [password, setPassword] = useState<string>("");
     const {user, loading} = useAuth();
     const [useHighAudioQuality, setHighAudioQuality] = useState<boolean>(false);
-    const {connect, joinStage, stage, actors, streamTrack} = useStage(config.SERVER_URL, parseInt(config.SERVER_PORT));
+    const {connect, joinStage, stage, participants} = useStage();
     const [localStream, setLocalStream] = useState<MediaStream>();
 
     useEffect(() => {
         fixWebRTC();
         if (user)
-            connect();
+            connect(config.SERVER_URL, parseInt(config.SERVER_PORT));
     }, [user]);
 
-    const shareVideoAndAudio = useCallback(() => {
-        if (localStream)
-            return;
-        return navigator.mediaDevices.getUserMedia({
-            video: {
-                width: config.WEBCAM_WIDTH,
-                height: config.WEBCAM_HEIGHT
-            },
-            //TODO: Implement more audio options
-            audio: useHighAudioQuality ? HighAudioQualitySettings : true
-        }).then(
-            (stream: MediaStream) => {
-                stream.getTracks().forEach((track: MediaStreamTrack) => streamTrack(track));
-                setLocalStream(stream);
-            }
-        );
-    }, [streamTrack]);
 
     if (loading) {
         return (
@@ -90,9 +73,6 @@ export default () => {
                         High Audio Quality
                     </Checkbox>
                 </FormControl>
-                <Button size={SIZE.large} onClick={() => joinStage(user, stageId)}>
-                    Join
-                </Button>
             </Layout>
         );
     }
@@ -100,18 +80,6 @@ export default () => {
     return (
         <Layout>
             <h1>{stage.name}</h1>
-            {localStream ?
-                <VideoPlayer stream={localStream}/> :
-                <Button onClick={shareVideoAndAudio}>SHARE VIDEO</Button>
-            }
-            {actors && actors.map((actor: Actor) => (
-                <div>
-                    <h1>{actor.name}</h1>
-                    {actor.videoTracks.map((track: MediaStreamTrack) => (
-                        <VideoTrackPlayer track={track}/>
-                    ))}
-                </div>
-            ))}
         </Layout>
     )
 }

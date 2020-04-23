@@ -63,7 +63,7 @@ const initializeSocketCommunication = async () => {
                     port: data.port
                 });
             });
-            socket.broadcast.to(stageId).emit("p2p-peer-added", {
+            socket.broadcast.to(stageId).emit("client-added", {
                 uid: uid,
                 socketId: socket.id
             });
@@ -73,8 +73,9 @@ const initializeSocketCommunication = async () => {
             token: string;
             stageName: string;
             type: "theater" | "music" | "conference";
+            password: string | null;
         }, callback) => {
-            console.log("create-stage(" + data.token + ", " + data.stageName + ", " + data.type + ")");
+            console.log("create-stage()");
             admin.auth().verifyIdToken(data.token)
                 .then(
                     (decodedIdToken: admin.auth.DecodedIdToken) => {
@@ -82,6 +83,7 @@ const initializeSocketCommunication = async () => {
                         admin.firestore().collection("stages").add({
                             name: data.stageName,
                             type: data.type,
+                            password: data.password,
                             directorUid: decodedIdToken.uid
                         }).then(
                             (docRef: admin.firestore.DocumentReference) => {
@@ -95,8 +97,9 @@ const initializeSocketCommunication = async () => {
         socket.on("join-stage", (data: {
             token: string;
             stageId: string;
+            password: string | null;
         }, callback) => {
-            console.log("join-stage(" + data.token + ", " + data.stageId + ")");
+            console.log("join-stage()");
             admin.auth().verifyIdToken(data.token)
                 .then(
                     (decodedIdToken: admin.auth.DecodedIdToken) => {
@@ -105,13 +108,17 @@ const initializeSocketCommunication = async () => {
                             .then((doc: admin.firestore.DocumentSnapshot) => {
                                 if (doc.exists) {
                                     const docData = doc.data();
-                                    joinRoomAndInitializeAllServices(data.stageId, decodedIdToken.uid);
-                                    callback({
-                                        stage: {
-                                            ...docData,
-                                            id: data.stageId
-                                        }
-                                    });
+                                    if (docData.password === data.password) {
+                                        joinRoomAndInitializeAllServices(data.stageId, decodedIdToken.uid);
+                                        callback({
+                                            stage: {
+                                                ...docData,
+                                                id: data.stageId
+                                            }
+                                        });
+                                    } else {
+                                        callback({error: "Wrong password"});
+                                    }
                                 } else {
                                     callback({error: "Could not find stage"});
                                 }

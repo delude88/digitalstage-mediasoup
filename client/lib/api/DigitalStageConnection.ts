@@ -14,7 +14,9 @@ export interface EventHandler {
 export interface Stage {
     id: string;
     name: string;
-    type: 'theater' | 'music' | 'conference'
+    password?: string;
+    type: 'theater' | 'music' | 'conference',
+    directorUid: string;
 }
 
 export interface Participant {
@@ -37,19 +39,20 @@ export default class DigitalStageConnection {
     private stage: Stage | null = null;
 
     constructor() {
-        window.addEventListener("beforeunload", (ev) => {
-            ev.preventDefault();
-            this.disconnect();
-        });
+        if (typeof window !== "undefined")
+            window.addEventListener("beforeunload", (ev) => {
+                ev.preventDefault();
+                this.disconnect();
+            });
     }
 
     public connect = (options: {
         hostname: string,
         port: number
-    }): Promise<boolean> => {
-        return new Promise<boolean>(resolve => {
+    }): Promise<void> => {
+        return new Promise<void>(resolve => {
             this.socket = extend(SocketIOClient(options.hostname + ":" + options.port));
-            return true;
+            resolve();
         });
     };
 
@@ -68,21 +71,24 @@ export default class DigitalStageConnection {
         this.socket = null;
     };
 
-    public createStage = (user: firebase.User, stageName: string, type: 'theater' | 'music' | 'conference' = 'theater'): Promise<Stage> => {
+    public createStage = (user: firebase.User, stageName: string, password?: string, type: 'theater' | 'music' | 'conference' = 'theater'): Promise<Stage> => {
         return user.getIdToken()
             .then((token: string) => {
                 console.log("create-stage");
                 return this.socket.request("create-stage", {
                     stageName,
                     type,
-                    token
+                    token,
+                    password: password ? password : null
                 })
                     .then((response: string | { error: string }): Stage => {
                         if (typeof response === "string") {
                             this.stage = {
                                 id: response,
                                 name: stageName,
-                                type: type
+                                type: type,
+                                password: password,
+                                directorUid: user.uid
                             };
                             this.attachSocketHandler(user.uid);
                             return this.stage;
@@ -96,20 +102,17 @@ export default class DigitalStageConnection {
             });
     };
 
-    public joinStage = (user: firebase.User, stageId: string): Promise<Stage> => {
+    public joinStage = (user: firebase.User, stageId: string, password?: string,): Promise<Stage> => {
         return user.getIdToken()
             .then((token: string) => {
                 console.log("join-stage");
                 return this.socket.request("join-stage", {
                     stageId,
-                    token
+                    token,
+                    password: password ? password : null
                 })
                     .then((response: {
-                        stage: {
-                            id: string;
-                            name: string;
-                            type: 'theater' | 'music' | 'conference'
-                        }
+                        stage: Stage
                     } | any): Stage => {
                         if (response.stage) {
                             this.stage = response.stage as Stage;
@@ -184,6 +187,13 @@ export default class DigitalStageConnection {
     };
 
     private attachSocketHandler = (uid: string) => {
+        this.socket.on("client-added", (data: {
+            uid: string,
+            socketId: string
+        }) => {
+            console.log("CLIENT '" + data.socketId + "' ADDED!");
+        });
+
         // Create listener
         this.mediasoupConnection = new MediasoupConnection(this.socket);
         this.webRTCConnection = new WebRTCConnection(this.socket, uid);
@@ -237,6 +247,10 @@ export default class DigitalStageConnection {
         });
 
         //TODO: Event handler for webrtc
+        this.mediasoupConnection.connect()
+            .then(() => {
+                console.log("Mediasoup ready!");
+            })
     };
 
     private publishSoundjackConnectionInfos = (connectionInfo: ConnectionInfo) => {

@@ -51,13 +51,24 @@ export default () => {
                     ) : (
                         <>
                             <StyledNavigationItem>
+                                <Link href="/stage/create">
+                                    <a>
+                                        Create stage
+                                    </a>
+                                </Link>
+                            </StyledNavigationItem>
+                            <StyledNavigationItem>
                                 <Link href="/stage">
-                                    Enter stage
+                                    <a>
+                                        Join stage
+                                    </a>
                                 </Link>
                             </StyledNavigationItem>
                             <StyledNavigationItem>
                                 <Link href="/stage/account">
-                                    Account
+                                    <a>
+                                        Account
+                                    </a>
                                 </Link>
                             </StyledNavigationItem>
                             <StyledNavigationItem>

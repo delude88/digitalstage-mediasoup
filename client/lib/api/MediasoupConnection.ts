@@ -21,8 +21,8 @@ export default class MediasoupConnection {
         this.socket = socket;
     }
 
-    public connect = (): Promise<boolean> => {
-        return new Promise<boolean>(async (resolve, reject) => {
+    public connect = (): Promise<void> => {
+        return new Promise<void>(async (resolve, reject) => {
             try {
                 this.device = new mediasoup.Device();
                 // Step 1: Get RTP Capabilities
@@ -116,6 +116,7 @@ export default class MediasoupConnection {
                 });
 
                 this.eventHandler.forEach((eventHandler: MediasoupEventHandler) => eventHandler.onConnected && eventHandler.onConnected());
+                resolve();
             } catch (error) {
                 reject(error);
             }

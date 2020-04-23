@@ -72,10 +72,11 @@ export default class SoundjackConnection {
     };
 
     constructor() {
-        window.addEventListener("beforeunload", (ev) => {
-            ev.preventDefault();
-            this.disconnect();
-        });
+        if (typeof window !== "undefined")
+            window.addEventListener("beforeunload", (ev) => {
+                ev.preventDefault();
+                this.disconnect();
+            });
     }
 
     public connect = (ip: string = "127.0.0.1", port: number = 1234) => {

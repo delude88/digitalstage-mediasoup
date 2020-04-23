@@ -2,7 +2,6 @@ import initFirebase from "./initFirebase";
 import React, {useEffect, useState} from "react";
 import firebase from "firebase/app";
 import "firebase/auth";
-import nextCookie from 'next-cookies';
 import cookie from 'js-cookie';
 
 initFirebase();

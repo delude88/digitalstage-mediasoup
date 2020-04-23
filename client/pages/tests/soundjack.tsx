@@ -11,7 +11,7 @@ export default () => {
     if (!connected) {
         return (
             <div>
-                <Button disabled={!ready || !available} isLoading={!ready} >Enable</Button>
+                <Button disabled={!ready || !available} isLoading={!ready}>Enable</Button>
             </div>
         );
     }

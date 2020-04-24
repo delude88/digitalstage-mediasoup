@@ -59,9 +59,10 @@ export default class WebRTCConnection {
     };
 
     private initializeSocketHandler = () => {
-        this.socket.on("p2p-peer-added", (data: {
+        this.socket.on("client-added", (data: {
             uid: string,
-            socketId: string;
+            name: string,
+            socketId: string
         }) => {
             // Serverside a new peer connected, so send her/him an offer
             const peerConnection: PeerConnection = this.createPeerConnection(data.uid, data.socketId);

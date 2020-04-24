@@ -25,7 +25,25 @@ module.exports = {
             ],
         },
         // Router settings
-        router: {
+        routerOptions: {
+            mediaCodecs:
+                [
+                    {
+                        kind: 'audio',
+                        mimeType: 'audio/opus',
+                        clockRate: 48000,
+                        channels: 2
+                    },
+                    {
+                        kind: 'video',
+                        mimeType: 'video/VP8',
+                        clockRate: 90000,
+                        parameters:
+                            {
+                                'x-google-start-bitrate': 1000
+                            }
+                    },
+                ]/*
             mediaCodecs:
                 [
                     {
@@ -77,7 +95,7 @@ module.exports = {
                                 "x-google-start-bitrate": 1000
                             }
                     }
-                ]
+                ]*/
         },
         // WebRtcTransport settings
         webRtcTransport: {
@@ -91,6 +109,15 @@ module.exports = {
             initialAvailableOutgoingBitrate: 1000000,
             minimumAvailableOutgoingBitrate: 600000,
             maxSctpMessageSize: 262144
-        }
+        },
+        plainTransportOptions:
+            {
+                listenIp:
+                    {
+                        ip: process.env.NODE_ENV === "production" ? "167.172.168.55" : "127.0.0.1",
+                        announcedIp: null
+                    },
+                maxSctpMessageSize: 262144
+            }
     }
 };

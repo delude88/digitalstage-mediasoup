@@ -12,7 +12,7 @@
   "author": "Tobias Hegemann <tobias.hegemann@googlemail.com>",
   "license": "MIT",
   "dependencies": {
-    "baseui": "^9.71.0",
+    "baseui": "^9.72.0",
     "baseweb": "^3.0.7",
     "firebase": "latest",
     "formik": "latest",
@@ -21,8 +21,8 @@
     "lodash": "^4.17.15",
     "lodash.debounce": "^4.0.8",
     "lodash.omit": "^4.5.0",
-    "mediasoup-client": "^3.6.4",
-    "next": "^9.3.4",
+    "mediasoup-client": "^3.6.5",
+    "next": "^9.3.5",
     "next-cookies": "latest",
     "now": "^18.0.0",
     "react": "^16.13.1",
@@ -36,7 +36,7 @@
     "yup": "latest"
   },
   "devDependencies": {
-    "@types/node": "^13.11.1",
+    "@types/node": "^13.13.2",
     "@types/react": "^16.9.34",
     "@types/socket.io-client": "^1.4.32",
     "@types/styletron-engine-atomic": "^1.1.0",

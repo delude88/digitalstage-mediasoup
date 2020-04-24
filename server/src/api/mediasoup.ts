@@ -12,8 +12,6 @@ const mediasoup = require("mediasoup");
 
 const config = require("./../config");
 
-const mediaCodecs = config.mediasoup.router.mediaCodecs;
-
 export default class MediasoupHandler {
     private worker: Worker | null = null;
     private stageRouter: {
@@ -32,7 +30,7 @@ export default class MediasoupHandler {
 
     private getStageRouter = async (stageId: string): Promise<Router> => {
         if (!this.stageRouter[stageId]) {
-            this.stageRouter[stageId] = await this.worker.createRouter(mediaCodecs);
+            this.stageRouter[stageId] = await this.worker.createRouter(config.mediasoup.routerOptions.mediaCodecs);
         }
         return this.stageRouter[stageId];
     };
@@ -50,6 +48,8 @@ export default class MediasoupHandler {
         } = {};
 
         socket.on("ms-get-rtp-capabilities", async ({}, callback) => {
+            console.log(socket.id + ": ms-get-rtp-capabilities");
+            console.log(router.rtpCapabilities);
             callback(router.rtpCapabilities);
         });
 

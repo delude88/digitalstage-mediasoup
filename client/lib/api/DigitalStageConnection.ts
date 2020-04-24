@@ -5,10 +5,11 @@ import firebase from "firebase/app";
 import "firebase/auth";
 import WebRTCConnection from "./WebRTCConnection";
 import MediasoupConnection from "./MediasoupConnection";
+import * as mediasoup from "mediasoup-client";
 
 export interface EventHandler {
-
-
+    onConnected: () => void;
+    onParticipantAdded: (participant: Participant) => void;
 }
 
 export interface Stage {
@@ -20,6 +21,11 @@ export interface Stage {
 }
 
 export interface Participant {
+    uid: string;
+    name: string;
+    tracks: {
+        [trackId: string]: MediaStreamTrack;
+    };
     soundjack?: {
         ip: string;
         port: number;
@@ -187,25 +193,34 @@ export default class DigitalStageConnection {
     };
 
     private attachSocketHandler = (uid: string) => {
-        this.socket.on("client-added", (data: {
-            uid: string,
-            socketId: string
-        }) => {
-            console.log("CLIENT '" + data.socketId + "' ADDED!");
-        });
-
         // Create listener
-        this.mediasoupConnection = new MediasoupConnection(this.socket);
+        this.mediasoupConnection = new MediasoupConnection(this.socket, uid);
         this.webRTCConnection = new WebRTCConnection(this.socket, uid);
 
+        // Add handler when client is added on serverside
+        // This handler is used by mediasoup and webrtc as well
+        this.socket.on("client-added", (data: {
+            uid: string,
+            name: string,
+            socketId: string
+        }) => {
+            console.log("CLIENT '" + data.name + "' ADDED!");
+            this.participants[uid] = {
+                uid: uid,
+                name: data.name,
+                tracks: {}
+            };
+        });
+
+        // Add handler for mediasoup
         this.mediasoupConnection.addEventHandler({
             onConnected: () => {
-
+                this.eventHandler.forEach((eventHandler: EventHandler) => eventHandler.onConnected && eventHandler.onConnected());
             },
             onDisconnected: () => {
 
             },
-            onConsumerAdded: () => {
+            onConsumerAdded: (consumer: mediasoup.types.Consumer) => {
 
             },
             onConsumerRemoved: () => {
@@ -213,6 +228,7 @@ export default class DigitalStageConnection {
             }
         });
 
+        // Add handler for soundjack
         this.soundjack.addEventHandler({
             onConnected: () => {
 

@@ -48,23 +48,24 @@ const initializeSocketCommunication = async () => {
     const SocketHandler = (socket: SocketIO.Socket) => {
         console.log("Got new socket connection " + socket.id + " from " + socket.handshake.address);
 
-        const joinRoomAndInitializeAllServices = (stageId: string, uid: string,) => {
+        const joinRoomAndInitializeAllServices = (stageId: string, user: admin.auth.UserRecord) => {
             socket.join(stageId);
             // Add socket event handler for webrtc (p2p-*), mediasoup (ms-*) and soundjack (sj-*)
-            webRTCHandler.initializeSingleSocket(socket, stageId, uid);
-            mediasoupHandler.initializeSingleSocket(socket, stageId, uid);
+            webRTCHandler.initializeSingleSocket(socket, stageId, user.uid);
+            mediasoupHandler.initializeSingleSocket(socket, stageId, user.uid);
             socket.on("sj-send-ip", (data: {
                 ip: string;
                 port: number;
             }) => {
                 socket.emit("sj-ip-sent", {
-                    uid: uid,
+                    uid: user.uid,
                     ip: data.ip,
                     port: data.port
                 });
             });
             socket.broadcast.to(stageId).emit("client-added", {
-                uid: uid,
+                uid: user.uid,
+                name: user.displayName,
                 socketId: socket.id
             });
         };
@@ -87,8 +88,12 @@ const initializeSocketCommunication = async () => {
                             directorUid: decodedIdToken.uid
                         }).then(
                             (docRef: admin.firestore.DocumentReference) => {
-                                joinRoomAndInitializeAllServices(docRef.id, decodedIdToken.uid);
-                                callback(docRef.id);
+                                admin.auth().getUser(decodedIdToken.uid).then(
+                                    (user: admin.auth.UserRecord) => {
+                                        joinRoomAndInitializeAllServices(docRef.id, user);
+                                        callback(docRef.id);
+                                    }
+                                )
                             }
                         );
                     });
@@ -109,13 +114,16 @@ const initializeSocketCommunication = async () => {
                                 if (doc.exists) {
                                     const docData = doc.data();
                                     if (docData.password === data.password) {
-                                        joinRoomAndInitializeAllServices(data.stageId, decodedIdToken.uid);
-                                        callback({
-                                            stage: {
-                                                ...docData,
-                                                id: data.stageId
-                                            }
-                                        });
+                                        admin.auth().getUser(decodedIdToken.uid).then(
+                                            (user: admin.auth.UserRecord) => {
+                                                joinRoomAndInitializeAllServices(data.stageId, user);
+                                                callback({
+                                                    stage: {
+                                                        ...docData,
+                                                        id: data.stageId
+                                                    }
+                                                });
+                                            });
                                     } else {
                                         callback({error: "Wrong password"});
                                     }

@@ -54,7 +54,7 @@ export default class MediasoupConnection {
                         .then(callback)
                         .catch(errCallback);
                 });
-                this.sendTransport.on('produce', async ({kind, rtpParameters, appData}, callback) => {
+                this.sendTransport.on('produce', async ({kind, rtpParameters}, callback) => {
                     console.log("mediasoup: sendTransport: produce");
                     const result = await this.socket.request('ms-send-track', {
                         transportId: sendTransportOptions.id,

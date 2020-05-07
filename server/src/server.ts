@@ -93,7 +93,7 @@ const initializeSocketCommunication = async () => {
                                         joinRoomAndInitializeAllServices(docRef.id, user);
                                         callback(docRef.id);
                                     }
-                                )
+                                );
                             }
                         );
                     });
@@ -135,34 +135,34 @@ const initializeSocketCommunication = async () => {
         });
 
         // DEPRECATED
-        socket.broadcast.emit('add-users', {
+        socket.broadcast.emit("add-users", {
             users: [socket.id]
         });
 
-        socket.on('connect', () => {
-            socketServer.emit('add-users', socket.id);
+        socket.on("connect", () => {
+            socketServer.emit("add-users", socket.id);
         });
 
-        socket.on('disconnect', () => {
-            socketServer.emit('remove-user', socket.id);
+        socket.on("disconnect", () => {
+            socketServer.emit("remove-user", socket.id);
         });
 
-        socket.on('make-offer', (data) => {
-            socket.to(data.to).emit('offer-made', {
+        socket.on("make-offer", (data) => {
+            socket.to(data.to).emit("offer-made", {
                 offer: data.offer,
                 socket: socket.id
             });
         });
 
-        socket.on('make-answer', (data) => {
-            socket.to(data.to).emit('answer-made', {
+        socket.on("make-answer", (data) => {
+            socket.to(data.to).emit("answer-made", {
                 socket: socket.id,
                 answer: data.answer
             });
         });
 
-        socket.on('send-candidate', (data) => {
-            socket.to(data.to).emit('candidate-sent', {
+        socket.on("send-candidate", (data) => {
+            socket.to(data.to).emit("candidate-sent", {
                 socket: socket.id,
                 candidate: data.candidate
             });

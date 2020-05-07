@@ -30,7 +30,8 @@ export default class MediasoupHandler {
 
     private getStageRouter = async (stageId: string): Promise<Router> => {
         if (!this.stageRouter[stageId]) {
-            this.stageRouter[stageId] = await this.worker.createRouter(config.mediasoup.routerOptions.mediaCodecs);
+            const mediaCodecs = config.mediasoup.routerOptions.mediaCodecs;
+            this.stageRouter[stageId] = await this.worker.createRouter({mediaCodecs});
         }
         return this.stageRouter[stageId];
     };
@@ -54,10 +55,14 @@ export default class MediasoupHandler {
         });
 
         /*** CREATE SEND TRANSPORT ***/
-        socket.on("ms-create-send-transport", async (data: {}, callback) => {
+        socket.on("ms-create-send-transport", async (data: {
+            preferTcp: boolean;
+            rtpCapabilities: RtpCapabilities;
+        }, callback) => {
             console.log(socket.id + ": ms-create-send-transport");
             try {
                 const transport: WebRtcTransport = await router.createWebRtcTransport({
+                    //preferTcp: data.preferTcp,
                     listenIps: config.mediasoup.webRtcTransport.listenIps,
                     enableUdp: true,
                     enableTcp: true,
@@ -81,10 +86,12 @@ export default class MediasoupHandler {
 
         /*** CREATE RECEIVE TRANSPORT ***/
         socket.on("ms-create-receive-transport", async (data: {
+            preferTcp: boolean;
             rtpCapabilities: RtpCapabilities;
         }, callback) => {
             console.log(socket.id + ": ms-create-receive-transport");
             const transport: WebRtcTransport = await router.createWebRtcTransport({
+               // preferTcp: data.preferTcp,
                 listenIps: config.mediasoup.webRtcTransport.listenIps,
                 enableUdp: true,
                 enableTcp: true,
